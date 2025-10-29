@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSnapshot } from "valtio";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 import state from "../store";
 import { download } from "../assets";
+import authState from "../store/authStore"; // Use your existing auth
 import { downloadCanvasToImage, reader } from "../config/helpers";
 import { EditorTabs, FilterTabs, DecalTypes } from "../config/constants";
 import { fadeAnimation, slideAnimation } from "../config/motion";
@@ -14,8 +17,11 @@ import {
   Tab,
   TextPicker,
 } from "../components";
+import SaveDesignButton from "../components/SaveDesignButton";
 
 const Customizer = () => {
+  const navigate = useNavigate();
+  const authSnap = useSnapshot(authState); // Use authState
   const snap = useSnapshot(state);
   const [file, setFile] = useState("");
   const [activeEditorTab, setActiveEditorTab] = useState("");
@@ -52,7 +58,6 @@ const Customizer = () => {
   }, []);
 
   // show tab content depending on the activeTab, or close it if clicked again
-  // NOTE: TextPicker is now handled separately outside the tabs container
   const generateTabContent = () => {
     switch (activeEditorTab) {
       case "colorpicker":
@@ -137,11 +142,37 @@ const Customizer = () => {
             <TextPicker applyText={applyText} />
           )}
 
-          {/* Go back button */}
+          {/* Top right buttons */}
           <motion.div
-            className="absolute z-10 top-5 right-5"
+            className="absolute z-10 top-5 right-5 flex gap-3"
             {...fadeAnimation}
           >
+            {/* My Designs Button */}
+            <button
+              onClick={() => navigate("/my-designs")}
+              className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md 
+                       border border-gray-600 transition-colors flex items-center gap-2 font-bold text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+              My Designs
+            </button>
+
+            {/* Save Design Button */}
+            <SaveDesignButton />
+
+            {/* Go Back Button */}
             <CustomButton
               type="filled"
               title="Go Back"
