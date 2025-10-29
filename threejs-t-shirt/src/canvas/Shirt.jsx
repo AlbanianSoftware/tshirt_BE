@@ -37,12 +37,12 @@ const Shirt = () => {
           />
         )}
 
-        {/* T-shirt logo */}
+        {/* T-shirt logo - balanced scale for text area */}
         {snap.isLogoTexture && (
           <Decal
             position={[0, 0.04, 0.15]}
             rotation={[0, 0, 0]}
-            scale={0.15}
+            scale={0.25}
             map={logoTexture}
             anisotropy={16}
             depthTest={false}
