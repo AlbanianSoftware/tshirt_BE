@@ -1,107 +1,82 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSnapshot } from "valtio";
 import state from "../store";
 import CustomButton from "./CustomButton";
+import TextEditor from "./TextEditor";
 
 const TextPicker = ({ applyText }) => {
   const snap = useSnapshot(state);
-  const [text, setText] = useState(snap.customText || "");
-  const [fontSize, setFontSize] = useState(snap.textSize || 100);
-  const [textColor, setTextColor] = useState(snap.textColor || "#000000");
-  const [fontFamily, setFontFamily] = useState(snap.textFont || "Arial");
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-  const handleApply = () => {
-    state.customText = text;
-    state.textSize = fontSize;
-    state.textColor = textColor;
-    state.textFont = fontFamily;
+  // Automatically open editor when TextPicker is rendered
+  useEffect(() => {
+    setIsEditorOpen(true);
+  }, []);
 
-    if (text.trim()) {
-      applyText();
-    }
+  const handleCloseEditor = () => {
+    setIsEditorOpen(false);
+  };
+
+  const handleApplyText = (textureUrl) => {
+    applyText(textureUrl);
+    setIsEditorOpen(false);
   };
 
   return (
-    <div className="textpicker-container">
-      <div className="flex flex-col gap-3">
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Text</label>
-          <input
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Enter your text"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
-            maxLength={20}
-          />
-        </div>
+    <>
+      {/* Simple button panel - only shown when editor is closed */}
+      {!isEditorOpen && (
+        <div className="textpicker-container">
+          <div className="flex flex-col gap-3 p-4">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Text Customization
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Add and customize text on your design with advanced controls
+              </p>
+            </div>
 
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">
-            Size: {fontSize}px
-          </label>
-          <input
-            type="range"
-            min="40"
-            max="200"
-            value={fontSize}
-            onChange={(e) => setFontSize(Number(e.target.value))}
-            className="w-full"
-          />
-        </div>
+            {snap.text.content && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                <p className="text-xs text-blue-600 font-medium mb-1">
+                  Current Text:
+                </p>
+                <p className="text-sm text-blue-900 font-semibold truncate">
+                  {snap.text.content}
+                </p>
+              </div>
+            )}
 
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Color</label>
-          <input
-            type="color"
-            value={textColor}
-            onChange={(e) => setTextColor(e.target.value)}
-            className="w-full h-10 rounded cursor-pointer"
-          />
-        </div>
+            <CustomButton
+              type="filled"
+              title={snap.text.content ? "Edit Text" : "Add Text"}
+              handleClick={() => setIsEditorOpen(true)}
+              customStyles="w-full px-4 py-3 font-bold text-sm"
+            />
 
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Font</label>
-          <select
-            value={fontFamily}
-            onChange={(e) => setFontFamily(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm"
-          >
-            <option value="Arial">Arial</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Courier New">Courier New</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Verdana">Verdana</option>
-            <option value="Impact">Impact</option>
-            <option value="Comic Sans MS">Comic Sans</option>
-          </select>
-        </div>
-
-        {text && (
-          <div className="mt-2 p-3 bg-gray-100 rounded-md text-center">
-            <p className="text-xs text-gray-500 mb-2">Preview:</p>
-            <p
-              style={{
-                color: textColor,
-                fontSize: `${fontSize / 5}px`,
-                fontFamily: fontFamily,
-                fontWeight: "bold",
-              }}
-            >
-              {text}
-            </p>
+            {snap.text.content && (
+              <button
+                onClick={() => {
+                  state.text.content = "";
+                  applyText("");
+                }}
+                className="w-full px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+              >
+                Remove Text
+              </button>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        <CustomButton
-          type="filled"
-          title="Apply Text"
-          handleClick={handleApply}
-          customStyles="w-full px-4 py-2.5 font-bold text-sm"
-        />
-      </div>
-    </div>
+      {/* Advanced Text Editor Modal */}
+      <TextEditor
+        isOpen={isEditorOpen}
+        onClose={handleCloseEditor}
+        onApply={handleApplyText}
+      />
+    </>
   );
 };
 

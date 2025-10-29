@@ -26,35 +26,12 @@ const Customizer = () => {
 
   const editorTabRef = useRef(null);
 
-  // Generate texture from text
-  const generateTextTexture = () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 1024;
-    const ctx = canvas.getContext("2d");
-
-    // Clear canvas with transparent background
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Set text properties
-    ctx.fillStyle = state.textColor;
-    ctx.font = `bold ${state.textSize}px ${state.textFont}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    // Draw text
-    ctx.fillText(state.customText, canvas.width / 2, canvas.height / 2);
-
-    return canvas.toDataURL("image/png");
-  };
-
-  // Apply text as texture
-  const applyText = () => {
-    if (state.customText.trim()) {
-      const textureUrl = generateTextTexture();
+  // Apply text texture (called from TextPicker)
+  const applyText = (textureUrl) => {
+    if (textureUrl) {
       handleDecals("text", textureUrl);
-      setActiveEditorTab("");
     }
+    setActiveEditorTab("");
   };
 
   // Closes the tab if clicked out
@@ -75,6 +52,7 @@ const Customizer = () => {
   }, []);
 
   // show tab content depending on the activeTab, or close it if clicked again
+  // NOTE: TextPicker is now handled separately outside the tabs container
   const generateTabContent = () => {
     switch (activeEditorTab) {
       case "colorpicker":
@@ -82,7 +60,7 @@ const Customizer = () => {
       case "filepicker":
         return <FilePicker file={file} setFile={setFile} readFile={readFile} />;
       case "textpicker":
-        return <TextPicker applyText={applyText} />;
+        return null; // TextPicker is rendered separately
       default:
         return null;
     }
@@ -90,7 +68,7 @@ const Customizer = () => {
 
   // Handles click on tab: opens tab or closes it if clicked again
   const handleTabClick = (tabName) => {
-    setActiveEditorTab((prevTab) => (prevTab === tabName ? "" : tabName)); // Toggle tab
+    setActiveEditorTab((prevTab) => (prevTab === tabName ? "" : tabName));
   };
 
   const handleDecals = (type, result) => {
@@ -153,6 +131,11 @@ const Customizer = () => {
               </div>
             </div>
           </motion.div>
+
+          {/* TextPicker - rendered OUTSIDE the tabs container so modal isn't constrained */}
+          {activeEditorTab === "textpicker" && (
+            <TextPicker applyText={applyText} />
+          )}
 
           {/* Go back button */}
           <motion.div
