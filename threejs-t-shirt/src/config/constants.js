@@ -8,7 +8,11 @@ export const EditorTabs = [
   {
     name: "filepicker",
     icon: fileIcon,
-  }
+  },
+  {
+    name: "textpicker", // NEW
+    icon: swatch, // Using swatch icon temporarily, or add a text icon
+  },
 ];
 
 export const FilterTabs = [
@@ -30,5 +34,10 @@ export const DecalTypes = {
   full: {
     stateProperty: "fullDecal",
     filterTab: "stylishShirt",
+  },
+  text: {
+    // NEW
+    stateProperty: "logoDecal",
+    filterTab: "logoShirt",
   },
 };

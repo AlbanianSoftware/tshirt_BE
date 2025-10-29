@@ -12,6 +12,7 @@ import {
   CustomButton,
   FilePicker,
   Tab,
+  TextPicker,
 } from "../components";
 
 const Customizer = () => {
@@ -25,10 +26,44 @@ const Customizer = () => {
 
   const editorTabRef = useRef(null);
 
+  // Generate texture from text
+  const generateTextTexture = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext("2d");
+
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Set text properties
+    ctx.fillStyle = state.textColor;
+    ctx.font = `bold ${state.textSize}px ${state.textFont}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Draw text
+    ctx.fillText(state.customText, canvas.width / 2, canvas.height / 2);
+
+    return canvas.toDataURL("image/png");
+  };
+
+  // Apply text as texture
+  const applyText = () => {
+    if (state.customText.trim()) {
+      const textureUrl = generateTextTexture();
+      handleDecals("text", textureUrl);
+      setActiveEditorTab("");
+    }
+  };
+
   // Closes the tab if clicked out
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (editorTabRef.current && !editorTabRef.current.contains(event.target)) {
+      if (
+        editorTabRef.current &&
+        !editorTabRef.current.contains(event.target)
+      ) {
         setActiveEditorTab("");
       }
     };
@@ -46,6 +81,8 @@ const Customizer = () => {
         return <ColorPicker />;
       case "filepicker":
         return <FilePicker file={file} setFile={setFile} readFile={readFile} />;
+      case "textpicker":
+        return <TextPicker applyText={applyText} />;
       default:
         return null;
     }
@@ -131,7 +168,10 @@ const Customizer = () => {
           </motion.div>
 
           {/* filter tabs */}
-          <motion.div className="filtertabs-container" {...slideAnimation("up")}>
+          <motion.div
+            className="filtertabs-container"
+            {...slideAnimation("up")}
+          >
             {FilterTabs.map((tab) => (
               <Tab
                 key={tab.name}
