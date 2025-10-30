@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSnapshot } from "valtio";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 import state from "../store";
 import { download } from "../assets";
-import authState from "../store/authStore"; // Use your existing auth
+import authState from "../store/authStore";
 import { downloadCanvasToImage, reader } from "../config/helpers";
 import { EditorTabs, FilterTabs, DecalTypes } from "../config/constants";
 import { fadeAnimation, slideAnimation } from "../config/motion";
@@ -21,16 +21,105 @@ import SaveDesignButton from "../components/SaveDesignButton";
 
 const Customizer = () => {
   const navigate = useNavigate();
-  const authSnap = useSnapshot(authState); // Use authState
+  const [searchParams] = useSearchParams(); // Add this to read URL params
+  const authSnap = useSnapshot(authState);
   const snap = useSnapshot(state);
   const [file, setFile] = useState("");
   const [activeEditorTab, setActiveEditorTab] = useState("");
   const [activeFilterTab, setActiveFilterTab] = useState({
-    logoShirt: true,
+    logoShirt: false,
     stylishShirt: false,
   });
+  const [loadingDesign, setLoadingDesign] = useState(false); // Add loading state
 
   const editorTabRef = useRef(null);
+
+  // NEW: Load design from URL parameter
+  useEffect(() => {
+    const designId = searchParams.get("design");
+    if (designId && authSnap.token) {
+      loadDesign(designId);
+    } else if (!designId) {
+      // Reset to clean state when no design is being loaded
+      state.isLogoTexture = false;
+      state.isFullTexture = false;
+    }
+  }, [searchParams, authSnap.token]);
+
+  // NEW: Function to load design from backend
+  const loadDesign = async (designId) => {
+    setLoadingDesign(true);
+    try {
+      console.log(`Loading design ${designId}...`);
+
+      // FORCE turn off textures IMMEDIATELY
+      state.isLogoTexture = false;
+      state.isFullTexture = false;
+      console.log("Textures turned OFF");
+
+      const response = await fetch(
+        `http://localhost:3001/api/designs/${designId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${authSnap.token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load design");
+      }
+
+      const design = await response.json();
+      console.log("Design loaded:", design);
+      console.log("Has logoDecal?", !!design.logoDecal);
+      console.log("Has fullDecal?", !!design.fullDecal);
+      console.log("isLogoTexture saved as:", design.isLogoTexture);
+      console.log("isFullTexture saved as:", design.isFullTexture);
+
+      // Apply the design data to the state
+      // Use the SAVED texture flags, not whether the data exists
+      if (design.color) {
+        state.color = design.color;
+        console.log("Applied color:", design.color);
+      }
+
+      // Apply logo decal and its visibility state
+      if (design.logoDecal) {
+        state.logoDecal = design.logoDecal;
+      }
+      state.isLogoTexture = design.isLogoTexture || false;
+      console.log("Logo texture set to:", state.isLogoTexture);
+
+      // Apply full decal and its visibility state
+      if (design.fullDecal) {
+        state.fullDecal = design.fullDecal;
+      }
+      state.isFullTexture = design.isFullTexture || false;
+      console.log("Full texture set to:", state.isFullTexture);
+
+      // Update filter tabs based on what was ACTIVE when saved
+      setActiveFilterTab({
+        logoShirt: design.isLogoTexture || false,
+        stylishShirt: design.isFullTexture || false,
+      });
+
+      console.log(
+        "Final state - isLogoTexture:",
+        state.isLogoTexture,
+        "isFullTexture:",
+        state.isFullTexture
+      );
+
+      // Optional: Show success message
+      console.log("Design loaded successfully!");
+    } catch (err) {
+      console.error("Error loading design:", err);
+      alert("Failed to load design. Please try again.");
+    } finally {
+      setLoadingDesign(false);
+    }
+  };
 
   // Apply text texture (called from TextPicker)
   const applyText = (textureUrl) => {
@@ -116,6 +205,18 @@ const Customizer = () => {
     <AnimatePresence>
       {!snap.intro && (
         <>
+          {/* Loading indicator */}
+          {loadingDesign && (
+            <motion.div
+              className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 
+                         bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg 
+                         border border-gray-600"
+              {...fadeAnimation}
+            >
+              Loading design...
+            </motion.div>
+          )}
+
           {/* left menu tabs */}
           <motion.div
             key="custom"

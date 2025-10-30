@@ -2,10 +2,10 @@
 import {
   mysqlTable,
   varchar,
-  text,
   int,
   timestamp,
   boolean,
+  mediumtext, // <-- Use this instead of text
 } from "drizzle-orm/mysql-core";
 
 // Users table
@@ -17,26 +17,23 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Designs table
 export const designs = mysqlTable("designs", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 7 }).notNull(),
 
-  // Shirt customization data
-  color: varchar("color", { length: 7 }).notNull(), // hex color
-  logoDecal: text("logo_decal"), // base64 or URL
-  fullDecal: text("full_decal"), // base64 or URL
+  // Use mediumtext for base64 images (up to 16MB each)
+  logoDecal: mediumtext("logo_decal"),
+  fullDecal: mediumtext("full_decal"),
+
   isLogoTexture: boolean("is_logo_texture").default(false),
   isFullTexture: boolean("is_full_texture").default(false),
 
-  // Text data stored as JSON
-  textData: text("text_data"), // JSON stringified text object
-
-  // Thumbnail for gallery view
-  thumbnail: text("thumbnail"), // base64 image of the design
+  textData: mediumtext("text_data"),
+  thumbnail: mediumtext("thumbnail"),
 
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),

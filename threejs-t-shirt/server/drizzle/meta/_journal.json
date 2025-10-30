@@ -15,6 +15,13 @@
       "when": 1761764316031,
       "tag": "0001_peaceful_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1761835214929,
+      "tag": "0002_foamy_quasar",
+      "breakpoints": true
     }
   ]
 }
