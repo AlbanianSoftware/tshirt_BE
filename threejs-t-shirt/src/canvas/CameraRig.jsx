@@ -40,7 +40,7 @@ position and rotation of a 3D model in a React component. */
     // set the model rotation smoothly
     easing.dampE(
       group.current.rotation,
-      [state.pointer.y / 7, -state.pointer.x / 2, 0],
+      [-state.pointer.y, state.pointer.x, 0],
       0.20,
       delta
     );
