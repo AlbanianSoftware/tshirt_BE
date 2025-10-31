@@ -38,3 +38,15 @@ export const designs = mysqlTable("designs", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
+
+export const cartItems = mysqlTable("cart_items", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  designId: int("design_id")
+    .notNull()
+    .references(() => designs.id, { onDelete: "cascade" }),
+  quantity: int("quantity").notNull().default(1),
+  addedAt: timestamp("added_at").defaultNow(),
+});

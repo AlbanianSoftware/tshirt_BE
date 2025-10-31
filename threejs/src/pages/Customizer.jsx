@@ -18,10 +18,11 @@ import {
   TextPicker,
 } from "../components";
 import SaveDesignButton from "../components/SaveDesignButton";
+import Cart from "../components/Cart";
 
 const Customizer = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // Add this to read URL params
+  const [searchParams] = useSearchParams();
   const authSnap = useSnapshot(authState);
   const snap = useSnapshot(state);
   const [file, setFile] = useState("");
@@ -30,29 +31,31 @@ const Customizer = () => {
     logoShirt: false,
     stylishShirt: false,
   });
-  const [loadingDesign, setLoadingDesign] = useState(false); // Add loading state
+  const [loadingDesign, setLoadingDesign] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [currentDesignId, setCurrentDesignId] = useState(null);
 
   const editorTabRef = useRef(null);
 
-  // NEW: Load design from URL parameter
+  // Load design from URL parameter
   useEffect(() => {
     const designId = searchParams.get("design");
     if (designId && authSnap.token) {
+      setCurrentDesignId(parseInt(designId));
       loadDesign(designId);
     } else if (!designId) {
-      // Reset to clean state when no design is being loaded
+      setCurrentDesignId(null);
       state.isLogoTexture = false;
       state.isFullTexture = false;
     }
   }, [searchParams, authSnap.token]);
 
-  // NEW: Function to load design from backend
+  // Function to load design from backend
   const loadDesign = async (designId) => {
     setLoadingDesign(true);
     try {
       console.log(`Loading design ${designId}...`);
 
-      // FORCE turn off textures IMMEDIATELY
       state.isLogoTexture = false;
       state.isFullTexture = false;
       console.log("Textures turned OFF");
@@ -72,46 +75,27 @@ const Customizer = () => {
 
       const design = await response.json();
       console.log("Design loaded:", design);
-      console.log("Has logoDecal?", !!design.logoDecal);
-      console.log("Has fullDecal?", !!design.fullDecal);
-      console.log("isLogoTexture saved as:", design.isLogoTexture);
-      console.log("isFullTexture saved as:", design.isFullTexture);
 
-      // Apply the design data to the state
-      // Use the SAVED texture flags, not whether the data exists
       if (design.color) {
         state.color = design.color;
         console.log("Applied color:", design.color);
       }
 
-      // Apply logo decal and its visibility state
       if (design.logoDecal) {
         state.logoDecal = design.logoDecal;
       }
       state.isLogoTexture = design.isLogoTexture || false;
-      console.log("Logo texture set to:", state.isLogoTexture);
 
-      // Apply full decal and its visibility state
       if (design.fullDecal) {
         state.fullDecal = design.fullDecal;
       }
       state.isFullTexture = design.isFullTexture || false;
-      console.log("Full texture set to:", state.isFullTexture);
 
-      // Update filter tabs based on what was ACTIVE when saved
       setActiveFilterTab({
         logoShirt: design.isLogoTexture || false,
         stylishShirt: design.isFullTexture || false,
       });
 
-      console.log(
-        "Final state - isLogoTexture:",
-        state.isLogoTexture,
-        "isFullTexture:",
-        state.isFullTexture
-      );
-
-      // Optional: Show success message
       console.log("Design loaded successfully!");
     } catch (err) {
       console.error("Error loading design:", err);
@@ -121,7 +105,34 @@ const Customizer = () => {
     }
   };
 
-  // Apply text texture (called from TextPicker)
+  // Handle adding to cart
+  const addToCart = async () => {
+    if (!currentDesignId) {
+      alert("Please save your design first before adding to cart!");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:3001/api/cart/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authSnap.token}`,
+        },
+        body: JSON.stringify({ designId: currentDesignId }),
+      });
+
+      if (response.ok) {
+        alert("Added to cart! 🛒");
+      } else {
+        alert("Failed to add to cart");
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      alert("Failed to add to cart");
+    }
+  };
+
   const applyText = (textureUrl) => {
     if (textureUrl) {
       handleDecals("text", textureUrl);
@@ -129,7 +140,6 @@ const Customizer = () => {
     setActiveEditorTab("");
   };
 
-  // Closes the tab if clicked out
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -146,7 +156,6 @@ const Customizer = () => {
     };
   }, []);
 
-  // show tab content depending on the activeTab, or close it if clicked again
   const generateTabContent = () => {
     switch (activeEditorTab) {
       case "colorpicker":
@@ -154,13 +163,12 @@ const Customizer = () => {
       case "filepicker":
         return <FilePicker file={file} setFile={setFile} readFile={readFile} />;
       case "textpicker":
-        return null; // TextPicker is rendered separately
+        return null;
       default:
         return null;
     }
   };
 
-  // Handles click on tab: opens tab or closes it if clicked again
   const handleTabClick = (tabName) => {
     setActiveEditorTab((prevTab) => (prevTab === tabName ? "" : tabName));
   };
@@ -205,7 +213,6 @@ const Customizer = () => {
     <AnimatePresence>
       {!snap.intro && (
         <>
-          {/* Loading indicator */}
           {loadingDesign && (
             <motion.div
               className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 
@@ -217,7 +224,6 @@ const Customizer = () => {
             </motion.div>
           )}
 
-          {/* left menu tabs */}
           <motion.div
             key="custom"
             className="absolute top-0 left-0 z-10"
@@ -238,17 +244,59 @@ const Customizer = () => {
             </div>
           </motion.div>
 
-          {/* TextPicker - rendered OUTSIDE the tabs container so modal isn't constrained */}
           {activeEditorTab === "textpicker" && (
             <TextPicker applyText={applyText} />
           )}
 
-          {/* Top right buttons */}
           <motion.div
             className="absolute z-10 top-5 right-5 flex gap-3"
             {...fadeAnimation}
           >
-            {/* My Designs Button */}
+            {/* View Cart Button */}
+            <button
+              onClick={() => setCartOpen(true)}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md 
+                       transition-colors flex items-center gap-2 font-bold text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
+              </svg>
+              View Cart
+            </button>
+
+            {currentDesignId && (
+              <button
+                onClick={addToCart}
+                className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-md 
+                         transition-colors flex items-center gap-2 font-bold text-sm"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                Add to Cart
+              </button>
+            )}
+
             <button
               onClick={() => navigate("/my-designs")}
               className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md 
@@ -270,10 +318,8 @@ const Customizer = () => {
               My Designs
             </button>
 
-            {/* Save Design Button */}
-            <SaveDesignButton />
+            <SaveDesignButton setCurrentDesignId={setCurrentDesignId} />
 
-            {/* Go Back Button */}
             <CustomButton
               type="filled"
               title="Go Back"
@@ -282,7 +328,6 @@ const Customizer = () => {
             />
           </motion.div>
 
-          {/* filter tabs */}
           <motion.div
             className="filtertabs-container"
             {...slideAnimation("up")}
@@ -305,6 +350,13 @@ const Customizer = () => {
               />
             </button>
           </motion.div>
+
+          {/* Cart Component */}
+          <Cart
+            isOpen={cartOpen}
+            onClose={() => setCartOpen(false)}
+            token={authSnap.token}
+          />
         </>
       )}
     </AnimatePresence>

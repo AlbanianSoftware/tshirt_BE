@@ -1,12 +1,12 @@
 // components/SaveDesignButton.jsx
 import React, { useState } from "react";
 import { useSnapshot } from "valtio";
-import authState from "../store/authStore"; // Use your existing auth store
-import state from "../store"; // Your Valtio state
+import authState from "../store/authStore";
+import state from "../store";
 
-const SaveDesignButton = () => {
+const SaveDesignButton = ({ setCurrentDesignId }) => {
   const snap = useSnapshot(state);
-  const authSnap = useSnapshot(authState); // Use authState instead of useAuth
+  const authSnap = useSnapshot(authState);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [designName, setDesignName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -60,7 +60,7 @@ const SaveDesignButton = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authSnap.token}`, // Use token from authState
+          Authorization: `Bearer ${authSnap.token}`,
         },
         body: JSON.stringify(designData),
       });
@@ -71,6 +71,12 @@ const SaveDesignButton = () => {
 
       if (!response.ok) {
         throw new Error(result.error || "Failed to save design");
+      }
+
+      // 🎯 CHANGE THIS LINE - use "designId" not "id"
+      if (result.designId && setCurrentDesignId) {
+        setCurrentDesignId(result.designId);
+        console.log("✅ Design ID set:", result.designId);
       }
 
       setMessage("Design saved successfully!");
@@ -157,6 +163,11 @@ const SaveDesignButton = () => {
                          rounded-lg text-gray-200 placeholder-gray-500
                          focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && !isSaving) {
+                    handleSave();
+                  }
+                }}
               />
             </div>
 
@@ -188,9 +199,10 @@ const SaveDesignButton = () => {
                   setDesignName("");
                   setMessage("");
                 }}
+                disabled={isSaving}
                 className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 
                          text-gray-200 rounded-lg border border-gray-600 
-                         transition-colors"
+                         transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
