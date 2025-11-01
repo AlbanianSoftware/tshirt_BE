@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useSnapshot } from "valtio";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 
 import state from "../store";
 import { download } from "../assets";
@@ -19,6 +18,7 @@ import {
 } from "../components";
 import SaveDesignButton from "../components/SaveDesignButton";
 import Cart from "../components/Cart";
+import ShirtTypePicker from "../components/ShirtTypePicker.jsx"; // NEW IMPORT
 
 const Customizer = () => {
   const navigate = useNavigate();
@@ -47,6 +47,7 @@ const Customizer = () => {
       setCurrentDesignId(null);
       state.isLogoTexture = false;
       state.isFullTexture = false;
+      state.shirtType = "tshirt"; // Reset to default
     }
   }, [searchParams, authSnap.token]);
 
@@ -75,6 +76,12 @@ const Customizer = () => {
 
       const design = await response.json();
       console.log("Design loaded:", design);
+
+      // Load shirt type
+      if (design.shirtType) {
+        state.shirtType = design.shirtType;
+        console.log("Applied shirt type:", design.shirtType);
+      }
 
       if (design.color) {
         state.color = design.color;
@@ -164,6 +171,8 @@ const Customizer = () => {
         return <FilePicker file={file} setFile={setFile} readFile={readFile} />;
       case "textpicker":
         return null;
+      case "shirttypepicker": // NEW CASE
+        return <ShirtTypePicker />;
       default:
         return null;
     }
@@ -238,6 +247,29 @@ const Customizer = () => {
                     handleClick={() => handleTabClick(tab.name)}
                   />
                 ))}
+
+                {/* NEW: Shirt Type Tab */}
+                <Tab
+                  tab={{
+                    name: "shirttypepicker",
+                    icon: (
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                        />
+                      </svg>
+                    ),
+                  }}
+                  handleClick={() => handleTabClick("shirttypepicker")}
+                />
 
                 {generateTabContent()}
               </div>

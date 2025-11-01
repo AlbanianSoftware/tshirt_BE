@@ -46,6 +46,7 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
       const designData = {
         name: designName,
         color: snap.color,
+        shirtType: snap.shirtType, // ✨ NEW: Save shirt type
         logoDecal: snap.logoDecal,
         fullDecal: snap.fullDecal,
         isLogoTexture: snap.isLogoTexture,
@@ -73,7 +74,7 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
         throw new Error(result.error || "Failed to save design");
       }
 
-      // 🎯 CHANGE THIS LINE - use "designId" not "id"
+      // Set the current design ID using designId from response
       if (result.designId && setCurrentDesignId) {
         setCurrentDesignId(result.designId);
         console.log("✅ Design ID set:", result.designId);

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSnapshot } from "valtio";
-import authState from "../store/authStore"; // Use your existing auth store
+import authState from "../store/authStore";
 
 const MyDesigns = () => {
   const [designs, setDesigns] = useState([]);
@@ -10,7 +10,14 @@ const MyDesigns = () => {
   const [error, setError] = useState("");
   const [deleteId, setDeleteId] = useState(null);
   const navigate = useNavigate();
-  const authSnap = useSnapshot(authState); // Use authState instead of useAuth
+  const authSnap = useSnapshot(authState);
+
+  // Shirt type display names
+  const shirtTypeLabels = {
+    tshirt: "T-Shirt",
+    long_sleeve: "Long Sleeve",
+    female_tshirt: "Women's Fit",
+  };
 
   useEffect(() => {
     if (authSnap.isAuthenticated && authSnap.token) {
@@ -26,7 +33,7 @@ const MyDesigns = () => {
       console.log("Fetching designs...");
       const response = await fetch("http://localhost:3001/api/designs", {
         headers: {
-          Authorization: `Bearer ${authSnap.token}`, // Use token from authState
+          Authorization: `Bearer ${authSnap.token}`,
         },
       });
 
@@ -60,7 +67,7 @@ const MyDesigns = () => {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${authSnap.token}`, // Use token from authState
+            Authorization: `Bearer ${authSnap.token}`,
           },
         }
       );
@@ -254,6 +261,14 @@ const MyDesigns = () => {
                   <h3 className="text-gray-200 font-semibold mb-1 truncate">
                     {design.name}
                   </h3>
+
+                  {/* NEW: Display shirt type */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs px-2 py-1 bg-blue-600 text-white rounded">
+                      {shirtTypeLabels[design.shirtType] || "T-Shirt"}
+                    </span>
+                  </div>
+
                   <p className="text-gray-500 text-sm mb-3">
                     {formatDate(design.createdAt)}
                   </p>

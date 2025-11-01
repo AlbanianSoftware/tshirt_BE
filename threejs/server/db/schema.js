@@ -5,7 +5,7 @@ import {
   int,
   timestamp,
   boolean,
-  mediumtext, // <-- Use this instead of text
+  mediumtext,
 } from "drizzle-orm/mysql-core";
 
 // Users table
@@ -24,6 +24,9 @@ export const designs = mysqlTable("designs", {
     .references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   color: varchar("color", { length: 7 }).notNull(),
+
+  // NEW: Shirt type field
+  shirtType: varchar("shirt_type", { length: 50 }).notNull().default("tshirt"), // 'tshirt', 'long_sleeve', 'female_tshirt'
 
   // Use mediumtext for base64 images (up to 16MB each)
   logoDecal: mediumtext("logo_decal"),

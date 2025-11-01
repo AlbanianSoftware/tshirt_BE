@@ -1,7 +1,7 @@
 // routes/designs.js
 import express from "express";
 import jwt from "jsonwebtoken";
-import { db } from "../db/index.js"; // Your Drizzle DB instance
+import { db } from "../db/index.js";
 import { designs } from "../db/schema.js";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -39,6 +39,7 @@ router.post("/", authenticate, async (req, res) => {
     const {
       name,
       color,
+      shirtType, // NEW FIELD
       logoDecal,
       fullDecal,
       isLogoTexture,
@@ -50,6 +51,7 @@ router.post("/", authenticate, async (req, res) => {
     console.log("Design data:", {
       name,
       color,
+      shirtType,
       hasLogo: !!logoDecal,
       hasFull: !!fullDecal,
     });
@@ -63,6 +65,7 @@ router.post("/", authenticate, async (req, res) => {
       userId: req.user.id,
       name,
       color,
+      shirtType: shirtType || "tshirt", // Default to tshirt
       logoDecal: logoDecal || null,
       fullDecal: fullDecal || null,
       isLogoTexture: isLogoTexture || false,
@@ -147,6 +150,7 @@ router.put("/:id", authenticate, async (req, res) => {
     const {
       name,
       color,
+      shirtType, // NEW FIELD
       logoDecal,
       fullDecal,
       isLogoTexture,
@@ -170,6 +174,7 @@ router.put("/:id", authenticate, async (req, res) => {
       .set({
         name: name || existing.name,
         color: color || existing.color,
+        shirtType: shirtType || existing.shirtType, // NEW FIELD
         logoDecal: logoDecal !== undefined ? logoDecal : existing.logoDecal,
         fullDecal: fullDecal !== undefined ? fullDecal : existing.fullDecal,
         isLogoTexture:
@@ -213,7 +218,3 @@ router.delete("/:id", authenticate, async (req, res) => {
 });
 
 export default router;
-
-// In your main server file (e.g., server.js or app.js), add:
-// import designsRoutes from './routes/designs.js';
-// app.use('/api/designs', designsRoutes);

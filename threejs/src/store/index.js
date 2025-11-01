@@ -8,6 +8,9 @@ const state = proxy({
   logoDecal: "./albania.png",
   fullDecal: "./circuit.png",
 
+  // NEW: Shirt type selection
+  shirtType: "tshirt", // 'tshirt', 'long_sleeve', 'female_tshirt'
+
   // Text configuration with advanced properties
   text: {
     content: "",
