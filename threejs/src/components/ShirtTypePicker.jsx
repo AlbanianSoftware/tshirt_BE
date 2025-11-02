@@ -7,7 +7,6 @@ const ShirtTypePicker = () => {
 
   const shirtTypes = [
     { id: "tshirt", name: "T-Shirt", icon: "👕" },
-    { id: "long_sleeve", name: "Long Sleeve", icon: "🧥" },
     { id: "female_tshirt", name: "Women's Fit", icon: "👚" },
   ];
 

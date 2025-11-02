@@ -49,72 +49,77 @@ const RegisterModal = () => {
   if (!snap.showRegisterModal) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 w-full max-w-md relative">
+    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 w-full max-w-md relative border border-gray-700 shadow-2xl backdrop-blur-md bg-opacity-95">
         <button
           onClick={() => (authState.showRegisterModal = false)}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-700"
         >
           ×
         </button>
 
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Register</h2>
+        <h2 className="text-3xl font-bold mb-2 text-white">Create Account</h2>
+        <p className="text-gray-400 mb-6 text-sm">Join us today</p>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-50 text-red-400 px-4 py-3 rounded-lg mb-6 backdrop-blur-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-medium mb-2">
+            <label className="block text-gray-300 text-sm font-medium mb-2">
               Username
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500 backdrop-blur-sm transition-all"
+              placeholder="johndoe"
               required
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-medium mb-2">
+            <label className="block text-gray-300 text-sm font-medium mb-2">
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500 backdrop-blur-sm transition-all"
+              placeholder="your@email.com"
               required
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-medium mb-2">
+            <label className="block text-gray-300 text-sm font-medium mb-2">
               Password
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500 backdrop-blur-sm transition-all"
+              placeholder="••••••••"
               required
             />
           </div>
 
           <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-medium mb-2">
+            <label className="block text-gray-300 text-sm font-medium mb-2">
               Confirm Password
             </label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+              className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500 backdrop-blur-sm transition-all"
+              placeholder="••••••••"
               required
             />
           </div>
@@ -122,24 +127,26 @@ const RegisterModal = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors font-medium disabled:bg-blue-400"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-3 rounded-lg hover:from-blue-500 hover:to-blue-400 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
           >
-            {loading ? "Creating account..." : "Register"}
+            {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{" "}
-          <button
-            onClick={() => {
-              authState.showRegisterModal = false;
-              authState.showLoginModal = true;
-            }}
-            className="text-blue-600 hover:underline font-medium"
-          >
-            Login
-          </button>
-        </p>
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-400">
+            Already have an account?{" "}
+            <button
+              onClick={() => {
+                authState.showRegisterModal = false;
+                authState.showLoginModal = true;
+              }}
+              className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+            >
+              Sign in
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -21,24 +21,15 @@ const Shirt = () => {
       logoScale: 0.25,
       fullScale: 1,
     },
-    long_sleeve: {
-      modelPath: "/models/long_sleve_shirt.glb",
-      nodeName: "Long_Sleeve_T-Shirt_Bahan_Dasar_FRONT_2657_0",
-      materialName: "Bahan_Dasar_FRONT_2657",
-      rotation: [0, 0, 0],
-      scale: 1,
-      logoPosition: [0, 0.04, 0.15],
-      logoScale: 0.25,
-      fullScale: 1,
-    },
     female_tshirt: {
       modelPath: "/models/female_tshirt.glb",
       nodeName: "Object_2",
       materialName: "material_0",
       rotation: [-Math.PI / 2, 0, -1.5], // Rotate -90 degrees on X axis to flip it right-side up
-      scale: 0.7, // Scale down to 70% size
-      logoPosition: [0, -0.15, 0.04], // Negative Y since we flipped it
-      logoScale: 0.25,
+      scale: 0.7,
+      logoPosition: [0.15, 0, 0.1],
+      logoScale: 0.35,
+      logoRotation: [0, -Math.PI / 2, 4.7],
       fullScale: 1,
     },
   };
@@ -50,6 +41,10 @@ const Shirt = () => {
 
   const nodeName = currentConfig.nodeName;
   const materialName = currentConfig.materialName;
+
+  // Load textures
+  const logoTexture = useTexture(snap.logoDecal);
+  const fullTexture = useTexture(snap.fullDecal);
 
   // Safety check
   if (!nodes[nodeName]) {
@@ -68,14 +63,28 @@ const Shirt = () => {
     return null;
   }
 
-  const logoTexture = useTexture(snap.logoDecal);
-  const fullTexture = useTexture(snap.fullDecal);
+  // Force material to update when shirt type changes
+  useEffect(() => {
+    if (materials[materialName]) {
+      materials[materialName].needsUpdate = true;
+    }
+  }, [snap.shirtType, materials, materialName]);
 
-  useFrame((state, delta) =>
-    easing.dampC(materials[materialName].color, snap.color, 0.25, delta)
-  );
+  useFrame((state, delta) => {
+    if (materials[materialName]) {
+      easing.dampC(materials[materialName].color, snap.color, 0.25, delta);
+    }
+  });
 
-  const stateString = JSON.stringify(snap);
+  // Include shirtType in the key to force re-render on type change
+  const stateString = JSON.stringify({
+    color: snap.color,
+    logoDecal: snap.logoDecal,
+    fullDecal: snap.fullDecal,
+    isLogoTexture: snap.isLogoTexture,
+    isFullTexture: snap.isFullTexture,
+    shirtType: snap.shirtType,
+  });
 
   return (
     <group
@@ -92,20 +101,20 @@ const Shirt = () => {
         dispose={null}
       >
         {/* T-shirt full texture */}
-        {snap.isFullTexture && (
+        {snap.isFullTexture && fullTexture && (
           <Decal
             position={[0, 0, 0]}
-            rotation={[0, 0, 0]}
+            rotation={currentConfig.fullRotation || [0, 0, 0]}
             scale={currentConfig.fullScale}
             map={fullTexture}
           />
         )}
 
         {/* T-shirt logo */}
-        {snap.isLogoTexture && (
+        {snap.isLogoTexture && logoTexture && (
           <Decal
             position={currentConfig.logoPosition}
-            rotation={[0, 0, 0]}
+            rotation={currentConfig.logoRotation || [0, 0, 0]}
             scale={currentConfig.logoScale}
             map={logoTexture}
             anisotropy={16}
@@ -120,7 +129,6 @@ const Shirt = () => {
 
 // Preload all models
 useGLTF.preload("/models/shirt_baked.glb");
-useGLTF.preload("/models/long_sleve_shirt.glb");
 useGLTF.preload("/models/female_tshirt.glb");
 
 export default Shirt;
