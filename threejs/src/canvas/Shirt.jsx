@@ -29,7 +29,7 @@ const Shirt = () => {
       scale: 0.7,
       logoPosition: [0.15, 0, 0.1],
       logoScale: 0.35,
-      logoRotation: [0, -Math.PI / 2, 4.7],
+      logoRotation: [1.6, Math.PI / 2, 0], // Fixed rotation - no longer inverted
       fullScale: 1,
     },
   };

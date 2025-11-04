@@ -12,16 +12,28 @@ const CanvasModel = () => {
       camera={{ position: [0, 0, 0], fov: 25 }} // fov = field of view
       gl={{ preserveDrawingBuffer: true }}
       className="w-full max-w-full h-full transition-all ease-in"
+      style={{ background: "transparent" }}
     >
+      {/* Ambient light for overall illumination */}
       <ambientLight intensity={0.5} />
-      <Environment preset="city" background />
+
+      {/* Key light from the front */}
+      <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
+
+      {/* Fill light from the back */}
+      <directionalLight position={[-5, 5, -5]} intensity={0.5} />
+
+      {/* Environment for reflections - REMOVED background prop */}
+      <Environment preset="city" />
 
       <CameraRig>
-        <Backdrop />
         <Center>
           <Shirt />
         </Center>
       </CameraRig>
+
+      {/* Backdrop stays fixed - outside CameraRig so it doesn't rotate */}
+      <Backdrop />
     </Canvas>
   );
 };
