@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { easing } from "maath";
 import { useSnapshot } from "valtio";
 import { useFrame } from "@react-three/fiber";
@@ -9,12 +9,12 @@ import state from "../store";
 const Shirt = () => {
   const snap = useSnapshot(state);
 
-  // Define shirt type configurations
   const shirtConfigs = {
     tshirt: {
       modelPath: "/models/shirt_baked.glb",
       nodeName: "T_Shirt_male",
       materialName: "lambert1",
+      position: [0, 0, 0],
       rotation: [0, 0, 0],
       scale: 1,
       logoPosition: [0, 0.04, 0.15],
@@ -25,28 +25,31 @@ const Shirt = () => {
       modelPath: "/models/female_tshirt.glb",
       nodeName: "Object_2",
       materialName: "material_0",
-      rotation: [-Math.PI / 2, 0, -1.5], // Rotate -90 degrees on X axis to flip it right-side up
+      position: [-0.15, 0, 0],
+      rotation: [-Math.PI / 2, 0, -1.5],
       scale: 0.7,
       logoPosition: [0.15, 0, 0.1],
       logoScale: 0.35,
-      logoRotation: [1.6, Math.PI / 2, 0], // Fixed rotation - no longer inverted
+      logoRotation: [1.6, Math.PI / 2, 0],
       fullScale: 1,
     },
   };
 
   const currentConfig = shirtConfigs[snap.shirtType] || shirtConfigs.tshirt;
-
-  // Load the appropriate model based on shirt type
   const { nodes, materials } = useGLTF(currentConfig.modelPath);
 
   const nodeName = currentConfig.nodeName;
   const materialName = currentConfig.materialName;
 
-  // Load textures
-  const logoTexture = useTexture(snap.logoDecal);
-  const fullTexture = useTexture(snap.fullDecal);
+  // Load textures with error handling
+  let logoTexture, fullTexture;
+  try {
+    logoTexture = useTexture(snap.logoDecal);
+    fullTexture = useTexture(snap.fullDecal);
+  } catch (error) {
+    console.error("Texture loading error:", error);
+  }
 
-  // Safety check
   if (!nodes[nodeName]) {
     console.error(
       `Node "${nodeName}" not found. Available nodes:`,
@@ -63,7 +66,6 @@ const Shirt = () => {
     return null;
   }
 
-  // Force material to update when shirt type changes
   useEffect(() => {
     if (materials[materialName]) {
       materials[materialName].needsUpdate = true;
@@ -76,7 +78,6 @@ const Shirt = () => {
     }
   });
 
-  // Include shirtType in the key to force re-render on type change
   const stateString = JSON.stringify({
     color: snap.color,
     logoDecal: snap.logoDecal,
@@ -89,6 +90,7 @@ const Shirt = () => {
   return (
     <group
       key={stateString}
+      position={currentConfig.position}
       rotation={currentConfig.rotation}
       scale={currentConfig.scale}
     >
@@ -100,7 +102,6 @@ const Shirt = () => {
         material-metalness={0}
         dispose={null}
       >
-        {/* T-shirt full texture */}
         {snap.isFullTexture && fullTexture && (
           <Decal
             position={[0, 0, 0]}
@@ -110,7 +111,6 @@ const Shirt = () => {
           />
         )}
 
-        {/* T-shirt logo */}
         {snap.isLogoTexture && logoTexture && (
           <Decal
             position={currentConfig.logoPosition}
@@ -127,7 +127,6 @@ const Shirt = () => {
   );
 };
 
-// Preload all models
 useGLTF.preload("/models/shirt_baked.glb");
 useGLTF.preload("/models/female_tshirt.glb");
 

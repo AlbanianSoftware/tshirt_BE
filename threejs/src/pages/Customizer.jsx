@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSnapshot } from "valtio";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -38,6 +38,15 @@ const Customizer = () => {
 
   const editorTabRef = useRef(null);
 
+  // Set intro to false when entering customizer
+  useEffect(() => {
+    state.intro = false;
+
+    return () => {
+      state.intro = true;
+    };
+  }, []);
+
   // Load design from URL parameter
   useEffect(() => {
     const designId = searchParams.get("design");
@@ -56,11 +65,8 @@ const Customizer = () => {
   const loadDesign = async (designId) => {
     setLoadingDesign(true);
     try {
-      console.log(`Loading design ${designId}...`);
-
       state.isLogoTexture = false;
       state.isFullTexture = false;
-      console.log("Textures turned OFF");
 
       const response = await fetch(
         `http://localhost:3001/api/designs/${designId}`,
@@ -76,16 +82,13 @@ const Customizer = () => {
       }
 
       const design = await response.json();
-      console.log("Design loaded:", design);
 
       if (design.shirtType) {
         state.shirtType = design.shirtType;
-        console.log("Applied shirt type:", design.shirtType);
       }
 
       if (design.color) {
         state.color = design.color;
-        console.log("Applied color:", design.color);
       }
 
       if (design.logoDecal) {
@@ -102,8 +105,6 @@ const Customizer = () => {
         logoShirt: design.isLogoTexture || false,
         stylishShirt: design.isFullTexture || false,
       });
-
-      console.log("Design loaded successfully!");
     } catch (err) {
       console.error("Error loading design:", err);
       alert("Failed to load design. Please try again.");
@@ -219,165 +220,156 @@ const Customizer = () => {
   };
 
   return (
-    <AnimatePresence>
-      {!snap.intro && (
-        <>
-          {loadingDesign && (
-            <motion.div
-              className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 
-                         bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg 
-                         border border-gray-600"
-              {...fadeAnimation}
-            >
-              Loading design...
-            </motion.div>
-          )}
+    <>
+      {loadingDesign && (
+        <motion.div
+          className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 
+                     backdrop-blur-xl bg-white/10 text-white px-6 py-3 rounded-xl shadow-2xl 
+                     border border-white/20"
+          {...fadeAnimation}
+        >
+          Loading design...
+        </motion.div>
+      )}
 
-          <motion.div
-            key="custom"
-            className="absolute top-0 left-0 z-10"
-            {...slideAnimation("left")}
-          >
-            <div className="flex items-center min-h-screen" ref={editorTabRef}>
-              <div className="editortabs-container tabs">
-                {EditorTabs.map((tab) => (
-                  <Tab
-                    key={tab.name}
-                    tab={tab}
-                    handleClick={() => handleTabClick(tab.name)}
-                  />
-                ))}
-
-                {/* Shirt Type Tab */}
-                <Tab
-                  tab={{
-                    name: "shirttypepicker",
-                    icon: stylishTshirt,
-                  }}
-                  handleClick={() => handleTabClick("shirttypepicker")}
-                />
-
-                {generateTabContent()}
-              </div>
-            </div>
-          </motion.div>
-
-          {activeEditorTab === "textpicker" && (
-            <TextPicker applyText={applyText} />
-          )}
-
-          <motion.div
-            className="absolute z-10 top-5 right-5 flex gap-3"
-            {...fadeAnimation}
-          >
-            {/* View Cart Button */}
-            <button
-              onClick={() => setCartOpen(true)}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md 
-                       transition-colors flex items-center gap-2 font-bold text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-              View Cart
-            </button>
-
-            {currentDesignId && (
-              <button
-                onClick={addToCart}
-                className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-md 
-                         transition-colors flex items-center gap-2 font-bold text-sm"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-                Add to Cart
-              </button>
-            )}
-
-            <button
-              onClick={() => navigate("/my-designs")}
-              className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md 
-                       border border-gray-600 transition-colors flex items-center gap-2 font-bold text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                />
-              </svg>
-              My Designs
-            </button>
-
-            <SaveDesignButton setCurrentDesignId={setCurrentDesignId} />
-
-            <CustomButton
-              type="filled"
-              title="Go Back"
-              handleClick={() => (state.intro = true)}
-              customStyles="w-fit px-4 py-2.5 font-bold text-sm"
-            />
-          </motion.div>
-
-          <motion.div
-            className="filtertabs-container"
-            {...slideAnimation("up")}
-          >
-            {FilterTabs.map((tab) => (
+      <motion.div
+        key="custom"
+        className="absolute top-0 left-0 z-10"
+        {...slideAnimation("left")}
+      >
+        <div className="flex items-center min-h-screen" ref={editorTabRef}>
+          <div className="editortabs-container tabs">
+            {EditorTabs.map((tab) => (
               <Tab
                 key={tab.name}
                 tab={tab}
-                isFilterTab
-                isActiveTab={activeFilterTab[tab.name]}
-                handleClick={() => handleActiveFilterTab(tab.name)}
+                handleClick={() => handleTabClick(tab.name)}
               />
             ))}
 
-            <button className="download-btn" onClick={downloadCanvasToImage}>
-              <img
-                src={download}
-                alt="Download Image"
-                className="w-3/5 h-3/5 object-contain"
-              />
-            </button>
-          </motion.div>
+            {/* Shirt Type Tab */}
+            <Tab
+              tab={{
+                name: "shirttypepicker",
+                icon: stylishTshirt,
+              }}
+              handleClick={() => handleTabClick("shirttypepicker")}
+            />
 
-          {/* Cart Component */}
-          <Cart
-            isOpen={cartOpen}
-            onClose={() => setCartOpen(false)}
-            token={authSnap.token}
+            {generateTabContent()}
+          </div>
+        </div>
+      </motion.div>
+
+      {activeEditorTab === "textpicker" && <TextPicker applyText={applyText} />}
+
+      <motion.div
+        className="absolute z-10 top-5 right-5 flex gap-3"
+        {...fadeAnimation}
+      >
+        {/* View Cart Button */}
+        <button
+          onClick={() => setCartOpen(true)}
+          className="px-4 py-2.5 backdrop-blur-xl bg-white/10 hover:bg-white/15 text-white rounded-xl 
+                   transition-all duration-300 flex items-center gap-2 font-bold text-sm border border-white/10 shadow-lg"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+            />
+          </svg>
+          View Cart
+        </button>
+
+        {currentDesignId && (
+          <button
+            onClick={addToCart}
+            className="px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white rounded-xl 
+                     transition-all duration-300 flex items-center gap-2 font-bold text-sm shadow-lg hover:shadow-xl"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            Add to Cart
+          </button>
+        )}
+
+        <button
+          onClick={() => navigate("/my-designs")}
+          className="px-4 py-2.5 backdrop-blur-xl bg-white/10 hover:bg-white/15 text-white rounded-xl 
+                   border border-white/10 transition-all duration-300 flex items-center gap-2 font-bold text-sm shadow-lg"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
+          </svg>
+          My Designs
+        </button>
+
+        <SaveDesignButton setCurrentDesignId={setCurrentDesignId} />
+
+        <CustomButton
+          type="filled"
+          title="Go Back"
+          handleClick={() => navigate("/")}
+          customStyles="w-fit px-4 py-2.5 font-bold text-sm"
+        />
+      </motion.div>
+
+      <motion.div className="filtertabs-container" {...slideAnimation("up")}>
+        {FilterTabs.map((tab) => (
+          <Tab
+            key={tab.name}
+            tab={tab}
+            isFilterTab
+            isActiveTab={activeFilterTab[tab.name]}
+            handleClick={() => handleActiveFilterTab(tab.name)}
           />
-        </>
-      )}
-    </AnimatePresence>
+        ))}
+
+        <button className="download-btn" onClick={downloadCanvasToImage}>
+          <img
+            src={download}
+            alt="Download Image"
+            className="w-3/5 h-3/5 object-contain"
+          />
+        </button>
+      </motion.div>
+
+      {/* Cart Component */}
+      <Cart
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        token={authSnap.token}
+      />
+    </>
   );
 };
 

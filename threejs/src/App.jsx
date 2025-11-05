@@ -1,4 +1,3 @@
-// App.jsx - Simplified
 import {
   BrowserRouter as Router,
   Routes,
@@ -21,7 +20,6 @@ function App() {
               <>
                 <Home />
                 <Canvas />
-                <Customizer />
               </>
             }
           />

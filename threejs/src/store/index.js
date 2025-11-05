@@ -5,9 +5,9 @@ const state = proxy({
   color: "#353934",
   isLogoTexture: true,
   isFullTexture: false,
-  logoDecal: "./albania.png",
-  fullDecal: "./circuit.png",
-
+  // store/index.js
+  logoDecal: "/albania.png", // Changed from "./albania.png"
+  fullDecal: "/circuit.png", // Changed from "./circuit.png"
   // NEW: Shirt type selection
   shirtType: "tshirt", // 'tshirt', 'long_sleeve', 'female_tshirt'
 

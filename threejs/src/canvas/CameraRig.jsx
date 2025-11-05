@@ -119,25 +119,10 @@ const CameraRig = ({ children }) => {
   }, [gl]);
 
   useFrame((state, delta) => {
-    const isBreakpoint = window.innerWidth <= 1260;
     const isMobile = window.innerWidth <= 600;
 
-    // Define camera positions
-    let targetPosition = [-0.4, 0, 2];
-
-    if (snap.intro) {
-      if (isMobile) {
-        targetPosition = [0, 0.2, 2.5];
-      } else if (isBreakpoint) {
-        targetPosition = [0, 0, 2];
-      }
-    } else {
-      if (isMobile) {
-        targetPosition = [0, 0, 2.5];
-      } else {
-        targetPosition = [0, 0, 2];
-      }
-    }
+    // Always center the shirt on all pages
+    let targetPosition = isMobile ? [0, 0, 2.5] : [0, 0, 2];
 
     // Smooth camera position
     easing.damp3(state.camera.position, targetPosition, 0.25, delta);
