@@ -1,4 +1,4 @@
-import { useEffect, Suspense } from "react";
+import { useEffect } from "react";
 import { easing } from "maath";
 import { useSnapshot } from "valtio";
 import { useFrame } from "@react-three/fiber";
@@ -25,7 +25,7 @@ const Shirt = () => {
       modelPath: "/models/female_tshirt.glb",
       nodeName: "Object_2",
       materialName: "material_0",
-      position: [-0.15, 0, 0],
+      position: [0, 0, 0], // Changed from [-0.15, 0, 0]
       rotation: [-Math.PI / 2, 0, -1.5],
       scale: 0.7,
       logoPosition: [0.15, 0, 0.1],
@@ -38,17 +38,12 @@ const Shirt = () => {
   const currentConfig = shirtConfigs[snap.shirtType] || shirtConfigs.tshirt;
   const { nodes, materials } = useGLTF(currentConfig.modelPath);
 
+  // Load textures - hooks must be called unconditionally!
+  const logoTexture = useTexture(snap.logoDecal);
+  const fullTexture = useTexture(snap.fullDecal);
+
   const nodeName = currentConfig.nodeName;
   const materialName = currentConfig.materialName;
-
-  // Load textures with error handling
-  let logoTexture, fullTexture;
-  try {
-    logoTexture = useTexture(snap.logoDecal);
-    fullTexture = useTexture(snap.fullDecal);
-  } catch (error) {
-    console.error("Texture loading error:", error);
-  }
 
   if (!nodes[nodeName]) {
     console.error(
