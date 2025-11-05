@@ -8,6 +8,7 @@ import Canvas from "./canvas/index.jsx";
 import Customizer from "./pages/Customizer.jsx";
 import Home from "./pages/Home.jsx";
 import MyDesigns from "./pages/MyDesigns.jsx";
+import Community from "./pages/Community.jsx";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             }
           />
           <Route path="/my-designs" element={<MyDesigns />} />
+          <Route path="/community" element={<Community />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

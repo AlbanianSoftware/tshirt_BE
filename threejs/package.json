@@ -13,6 +13,7 @@
     "@react-three/drei": "^9.112.0",
     "@react-three/fiber": "^8.17.6",
     "dotenv": "^17.2.3",
+    "express-rate-limit": "^8.2.1",
     "framer-motion": "^10.16.0",
     "maath": "^0.7.0",
     "prop-types": "^15.8.1",
@@ -21,7 +22,9 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.5",
     "three": "^0.155.0",
-    "valtio": "^1.11.2"
+    "use-debounce": "^10.0.6",
+    "valtio": "^1.11.2",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

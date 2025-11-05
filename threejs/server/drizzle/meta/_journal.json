@@ -36,6 +36,13 @@
       "when": 1762033622221,
       "tag": "0004_outstanding_plazm",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1762373912337,
+      "tag": "0005_nifty_ma_gnuci",
+      "breakpoints": true
     }
   ]
 }

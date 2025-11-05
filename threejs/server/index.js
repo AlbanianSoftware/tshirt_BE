@@ -1,10 +1,13 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
+import communityRoutes from "./routes/community.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// 🔥 STEP 1: CORS (first)
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -14,16 +17,26 @@ app.use(
   })
 );
 
+// 🔥 STEP 2: Body parsers (BEFORE routes!)
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// 🎯 MOVE LOGGING HERE - BEFORE ROUTES
+// 🔥 STEP 3: Logging middleware
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url}`);
   next();
 });
 
-// Import routes with error handling
+// 🔥 STEP 4: Rate Limiting for Publishing
+const publishLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20000, // change the limit latter, used to prevent spam...posts per 15 min
+  message: { error: "Too many posts, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// 🔥 STEP 5: Import routes with error handling
 let authRoutes, designsRoutes, cartRoutes;
 
 try {
@@ -47,13 +60,21 @@ try {
   console.error("❌ Failed to load cart routes:", e.message);
 }
 
-// Mount routes
+console.log("✅ Community routes loaded");
+
+// 🔥 STEP 6: Mount routes (AFTER body parsers!)
 if (authRoutes) app.use("/api/auth", authRoutes);
 if (designsRoutes) app.use("/api/designs", designsRoutes);
 if (cartRoutes) {
   app.use("/api/cart", cartRoutes);
   console.log("✅ Cart routes mounted at /api/cart");
 }
+
+// Apply rate limiting only to community routes
+app.use("/api/community", publishLimiter, communityRoutes);
+console.log(
+  "✅ Community routes mounted at /api/community (with rate limiting)"
+);
 
 // 404 handler - STAYS AT THE END
 app.use((req, res) => {
@@ -68,4 +89,5 @@ app.listen(PORT, () => {
   console.log("  - /api/auth");
   console.log("  - /api/designs");
   console.log("  - /api/cart");
+  console.log("  - /api/community (⏱️ rate limited)");
 });

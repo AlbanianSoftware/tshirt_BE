@@ -24,20 +24,30 @@ export const designs = mysqlTable("designs", {
     .references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   color: varchar("color", { length: 7 }).notNull(),
-
-  // NEW: Shirt type field
-  shirtType: varchar("shirt_type", { length: 50 }).notNull().default("tshirt"), // 'tshirt', 'long_sleeve', 'female_tshirt'
-
-  // Use mediumtext for base64 images (up to 16MB each)
+  shirtType: varchar("shirt_type", { length: 50 }).notNull().default("tshirt"),
   logoDecal: mediumtext("logo_decal"),
   fullDecal: mediumtext("full_decal"),
-
   isLogoTexture: boolean("is_logo_texture").default(false),
   isFullTexture: boolean("is_full_texture").default(false),
-
   textData: mediumtext("text_data"),
   thumbnail: mediumtext("thumbnail"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
 
+// 🆕 Community Posts Table
+export const communityPosts = mysqlTable("community_posts", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  designId: int("design_id")
+    .notNull()
+    .references(() => designs.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: mediumtext("description"),
+  views: int("views").default(0),
+  likes: int("likes").default(0), // Optional: for future feature
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });

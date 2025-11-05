@@ -128,3 +128,16 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Tailwind CSS build output
+*.css.map
+
+# Vite
+.vite/
+dist/
+
+# PostCSS cache
+.postcss-cache/
+
+# SvelteKit or Astro builds
+.build/
