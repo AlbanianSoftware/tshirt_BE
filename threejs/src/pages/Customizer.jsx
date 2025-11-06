@@ -16,6 +16,7 @@ import {
   FilePicker,
   Tab,
   TextPicker,
+  LogoPicker,
 } from "../components";
 import SaveDesignButton from "../components/SaveDesignButton";
 import Cart from "../components/Cart";
@@ -38,6 +39,7 @@ const Customizer = () => {
   const [viewingCommunityDesign, setViewingCommunityDesign] = useState(false);
 
   const editorTabRef = useRef(null);
+  const logoPickerRef = useRef(null);
 
   // Set intro to false when entering customizer
   useEffect(() => {
@@ -79,6 +81,14 @@ const Customizer = () => {
     state.shirtType = "tshirt";
     state.logoDecal = "/albania.png";
     state.fullDecal = "/circuit.png";
+    // Reset logo state
+    state.logo = {
+      url: "/albania.png",
+      scale: 1,
+      position: { x: 0, y: 0 },
+      rotation: 0,
+      opacity: 1,
+    };
     setActiveFilterTab({
       logoShirt: false,
       stylishShirt: false,
@@ -113,6 +123,11 @@ const Customizer = () => {
       // Apply text data if exists
       if (design.textData) {
         state.text = { ...state.text, ...design.textData };
+      }
+
+      // Apply logo data if exists
+      if (design.logoData) {
+        state.logo = { ...state.logo, ...design.logoData };
       }
 
       setActiveFilterTab({
@@ -155,6 +170,11 @@ const Customizer = () => {
 
       state.isLogoTexture = design.isLogoTexture || false;
       state.isFullTexture = design.isFullTexture || false;
+
+      // Load logo data if exists
+      if (design.logoData) {
+        state.logo = { ...state.logo, ...design.logoData };
+      }
 
       setActiveFilterTab({
         logoShirt: design.isLogoTexture || false,
@@ -205,10 +225,16 @@ const Customizer = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Don't close if clicking inside logo picker or editor tabs
       if (
-        editorTabRef.current &&
-        !editorTabRef.current.contains(event.target)
+        (editorTabRef.current && editorTabRef.current.contains(event.target)) ||
+        (logoPickerRef.current && logoPickerRef.current.contains(event.target))
       ) {
+        return;
+      }
+
+      // Only close textpicker, not logopicker (it has its own close button)
+      if (activeEditorTab === "textpicker") {
         setActiveEditorTab("");
       }
     };
@@ -217,7 +243,7 @@ const Customizer = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [activeEditorTab]);
 
   const generateTabContent = () => {
     switch (activeEditorTab) {
@@ -226,6 +252,8 @@ const Customizer = () => {
       case "filepicker":
         return <FilePicker file={file} setFile={setFile} readFile={readFile} />;
       case "textpicker":
+        return null;
+      case "logopicker":
         return null;
       case "shirttypepicker":
         return <ShirtTypePicker />;
@@ -344,6 +372,13 @@ const Customizer = () => {
       </motion.div>
 
       {activeEditorTab === "textpicker" && <TextPicker applyText={applyText} />}
+
+      {/* Logo Picker with ref */}
+      <div ref={logoPickerRef}>
+        {activeEditorTab === "logopicker" && (
+          <LogoPicker onClose={() => setActiveEditorTab("")} />
+        )}
+      </div>
 
       <motion.div
         className="absolute z-10 top-5 right-5 flex gap-3"

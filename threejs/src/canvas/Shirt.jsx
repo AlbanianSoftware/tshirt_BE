@@ -20,25 +20,41 @@ const Shirt = () => {
       logoPosition: [0, 0.04, 0.15],
       logoScale: 0.25,
       fullScale: 1,
+      // Bounds for logo
+      logoBounds: {
+        minScale: 0.15,
+        maxScale: 0.5,
+        minX: -0.05,
+        maxX: 0.05,
+        minY: -0.05,
+        maxY: 0.13,
+      },
     },
     female_tshirt: {
       modelPath: "/models/female_tshirt.glb",
       nodeName: "Object_2",
       materialName: "material_0",
-      position: [0, 0, 0], // Changed from [-0.15, 0, 0]
+      position: [0, 0, 0],
       rotation: [-Math.PI / 2, 0, -1.5],
       scale: 0.7,
       logoPosition: [0.15, 0, 0.1],
       logoScale: 0.35,
       logoRotation: [1.6, Math.PI / 2, 0],
       fullScale: 1,
+      logoBounds: {
+        minScale: 0.2,
+        maxScale: 0.7,
+        minX: 0.05,
+        maxX: 0.25,
+        minY: -0.05,
+        maxY: 0.15,
+      },
     },
   };
 
   const currentConfig = shirtConfigs[snap.shirtType] || shirtConfigs.tshirt;
   const { nodes, materials } = useGLTF(currentConfig.modelPath);
 
-  // Load textures - hooks must be called unconditionally!
   const logoTexture = useTexture(snap.logoDecal);
   const fullTexture = useTexture(snap.fullDecal);
 
@@ -80,7 +96,57 @@ const Shirt = () => {
     isLogoTexture: snap.isLogoTexture,
     isFullTexture: snap.isFullTexture,
     shirtType: snap.shirtType,
+    logo: snap.logo,
   });
+
+  // Calculate logo transformations with bounds
+  const getLogoTransform = () => {
+    const bounds = currentConfig.logoBounds;
+
+    // Clamp scale within bounds
+    const clampedScale = Math.max(
+      bounds.minScale,
+      Math.min(
+        bounds.maxScale,
+        currentConfig.logoScale * (snap.logo.scale || 1)
+      )
+    );
+
+    // Convert pixel offsets to 3D space
+    const offsetMultiplier = 0.0005;
+    const xOffset = (snap.logo.position?.x || 0) * offsetMultiplier;
+    const yOffset = (snap.logo.position?.y || 0) * offsetMultiplier;
+
+    // Calculate new position with clamping
+    const basePos = currentConfig.logoPosition;
+    const newX = Math.max(
+      bounds.minX,
+      Math.min(bounds.maxX, basePos[0] + xOffset)
+    );
+    const newY = Math.max(
+      bounds.minY,
+      Math.min(bounds.maxY, basePos[1] + yOffset)
+    );
+
+    const newPosition = [newX, newY, basePos[2]];
+
+    // Rotation
+    const baseRotation = currentConfig.logoRotation || [0, 0, 0];
+    const additionalRotation = ((snap.logo.rotation || 0) * Math.PI) / 180;
+    const newRotation = [
+      baseRotation[0],
+      baseRotation[1],
+      baseRotation[2] + additionalRotation,
+    ];
+
+    return {
+      position: newPosition,
+      rotation: newRotation,
+      scale: clampedScale,
+    };
+  };
+
+  const logoTransform = getLogoTransform();
 
   return (
     <group
@@ -108,9 +174,9 @@ const Shirt = () => {
 
         {snap.isLogoTexture && logoTexture && (
           <Decal
-            position={currentConfig.logoPosition}
-            rotation={currentConfig.logoRotation || [0, 0, 0]}
-            scale={currentConfig.logoScale}
+            position={logoTransform.position}
+            rotation={logoTransform.rotation}
+            scale={logoTransform.scale}
             map={logoTexture}
             anisotropy={16}
             depthTest={false}

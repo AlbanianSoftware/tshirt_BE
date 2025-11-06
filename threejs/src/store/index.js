@@ -35,6 +35,18 @@ const state = proxy({
     },
   },
 
+  // Logo configuration with size and position controls
+  logo: {
+    url: "/albania.png", // Current logo URL
+    scale: 1, // Size multiplier (0.1 - 3)
+    position: {
+      x: 0, // pixel offset from center (-200 to 200)
+      y: 0, // pixel offset from center (-200 to 200)
+    },
+    rotation: 0, // degrees (0-360)
+    opacity: 1, // transparency (0-1)
+  },
+
   // Legacy support (can be removed later if not needed elsewhere)
   customText: "",
   textColor: "#000000",

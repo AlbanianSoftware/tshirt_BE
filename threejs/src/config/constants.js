@@ -13,6 +13,10 @@ export const EditorTabs = [
     name: "textpicker",
     icon: logoShirt,
   },
+  {
+    name: "logopicker",
+    icon: logoShirt, // use any icon
+  },
 ];
 
 export const FilterTabs = [
