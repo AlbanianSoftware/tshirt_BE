@@ -1,11 +1,17 @@
-import { useState, useEffect } from "react";
 import { useSnapshot } from "valtio";
 import state from "../store";
 
 const LogoEditor = ({ isOpen, onClose }) => {
   const snap = useSnapshot(state);
 
-  if (!isOpen) return null;
+  console.log("LogoEditor render - isOpen:", isOpen);
+
+  if (!isOpen) {
+    console.log("LogoEditor returning null because isOpen is false");
+    return null;
+  }
+
+  console.log("LogoEditor is rendering!");
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -14,7 +20,6 @@ const LogoEditor = ({ isOpen, onClose }) => {
       state.logo.url = url;
       state.logoDecal = url;
 
-      // Make sure logo is visible
       if (!state.isLogoTexture) {
         state.isLogoTexture = true;
       }
@@ -44,14 +49,17 @@ const LogoEditor = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed left-5 top-1/2 -translate-y-1/2 z-40">
+    <div className="fixed left-5 top-1/2 -translate-y-1/2 z-[9999]">
       <div className="backdrop-blur-xl bg-black/80 rounded-2xl shadow-2xl w-[320px] border border-white/10">
         <div className="p-5">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-white">Logo Settings</h3>
             <button
-              onClick={onClose}
+              onClick={() => {
+                console.log("Closing logo editor");
+                onClose();
+              }}
               className="text-gray-400 hover:text-white transition-colors"
             >
               <svg
