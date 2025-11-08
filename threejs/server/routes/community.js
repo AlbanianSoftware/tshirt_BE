@@ -70,6 +70,7 @@ router.get("/", async (req, res) => {
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
         textData: designs.textData,
+        logoData: designs.logoData, // ✨ NEW: Include logo transformation data
         thumbnail: designs.thumbnail,
 
         // User info (creator)
@@ -97,10 +98,11 @@ router.get("/", async (req, res) => {
       .offset(parseInt(offset))
       .orderBy(desc(communityPosts.createdAt));
 
-    // Parse textData JSON
+    // Parse JSON fields
     const parsedPosts = posts.map((post) => ({
       ...post,
       textData: post.textData ? JSON.parse(post.textData) : null,
+      logo: post.logoData ? JSON.parse(post.logoData) : null, // ✨ NEW: Parse logo data
     }));
 
     res.json(parsedPosts);
@@ -132,6 +134,7 @@ router.get("/:id", async (req, res) => {
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
         textData: designs.textData,
+        logoData: designs.logoData, // ✨ NEW: Include logo transformation data
         thumbnail: designs.thumbnail,
 
         userId: users.id,
@@ -152,10 +155,11 @@ router.get("/:id", async (req, res) => {
       .set({ views: post.views + 1 })
       .where(eq(communityPosts.id, postId));
 
-    // Parse textData
+    // Parse JSON fields
     const parsedPost = {
       ...post,
       textData: post.textData ? JSON.parse(post.textData) : null,
+      logo: post.logoData ? JSON.parse(post.logoData) : null, // ✨ NEW: Parse logo data
     };
 
     res.json(parsedPost);
@@ -179,6 +183,7 @@ router.get("/:id/design", async (req, res) => {
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
         textData: designs.textData,
+        logoData: designs.logoData, // ✨ NEW: Include logo transformation data
       })
       .from(communityPosts)
       .leftJoin(designs, eq(communityPosts.designId, designs.id))
@@ -188,10 +193,11 @@ router.get("/:id/design", async (req, res) => {
       return res.status(404).json({ error: "Design not found" });
     }
 
-    // Parse textData
+    // Parse JSON fields
     const design = {
       ...post,
       textData: post.textData ? JSON.parse(post.textData) : null,
+      logo: post.logoData ? JSON.parse(post.logoData) : null, // ✨ NEW: Parse logo data
     };
 
     res.json(design);
