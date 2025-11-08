@@ -5,6 +5,7 @@ export const useEditorTabs = () => {
   const [logoEditorOpen, setLogoEditorOpen] = useState(false);
   const editorTabRef = useRef(null);
   const logoPickerRef = useRef(null);
+  const logoEditorRef = useRef(null);
 
   const handleTabClick = (tabName) => {
     setActiveEditorTab((prevTab) => (prevTab === tabName ? "" : tabName));
@@ -12,18 +13,27 @@ export const useEditorTabs = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        (editorTabRef.current && editorTabRef.current.contains(event.target)) ||
-        (logoPickerRef.current &&
-          logoPickerRef.current.contains(event.target)) ||
-        logoEditorOpen
-      ) {
+      // ONLY close textpicker on outside clicks
+      // Don't interfere with logo picker AT ALL
+
+      if (editorTabRef.current && editorTabRef.current.contains(event.target)) {
+        console.log("Click inside sidebar - ignoring");
         return;
       }
 
+      // If logo editor is open, don't close anything
+      if (logoEditorOpen) {
+        console.log("Logo editor open - ignoring outside clicks");
+        return;
+      }
+
+      // ONLY close textpicker, leave logopicker alone
       if (activeEditorTab === "textpicker") {
+        console.log("Closing textpicker due to outside click");
         setActiveEditorTab("");
       }
+
+      // DO NOT CLOSE LOGOPICKER - let it handle its own closing
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -40,5 +50,6 @@ export const useEditorTabs = () => {
     handleTabClick,
     editorTabRef,
     logoPickerRef,
+    logoEditorRef,
   };
 };

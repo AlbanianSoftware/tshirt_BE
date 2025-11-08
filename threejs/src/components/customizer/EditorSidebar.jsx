@@ -13,7 +13,6 @@ const EditorSidebar = ({
   file,
   setFile,
   readFile,
-  editorTabRef,
 }) => {
   const generateTabContent = () => {
     switch (activeEditorTab) {
@@ -38,7 +37,7 @@ const EditorSidebar = ({
       className="absolute top-0 left-0 z-10"
       {...slideAnimation("left")}
     >
-      <div className="flex items-center min-h-screen" ref={editorTabRef}>
+      <div className="flex items-center min-h-screen">
         <div className="editortabs-container tabs">
           {EditorTabs.map((tab) => (
             <Tab
@@ -48,7 +47,6 @@ const EditorSidebar = ({
             />
           ))}
 
-          {/* Shirt Type Tab */}
           <Tab
             tab={{
               name: "shirttypepicker",

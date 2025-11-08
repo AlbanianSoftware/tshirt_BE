@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useSnapshot } from "valtio";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import state from "../store";
 import authState from "../store/authStore";
 import { reader } from "../config/helpers";
 import { DecalTypes } from "../config/constants";
-import { TextPicker, LogoPicker } from "../components";
+import { TextPicker } from "../components";
 import LogoEditor from "../components/LogoEditor";
 import Cart from "../components/Cart";
 
@@ -18,14 +18,13 @@ import StatusBanners from "../components/customizer/StatusBanners";
 
 // Import custom hooks
 import { useDesignLoader } from "../hooks/useDesignLoader";
-import { useEditorTabs } from "../hooks/useEditorTabs";
 
 const Customizer = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const authSnap = useSnapshot(authState);
-  const snap = useSnapshot(state);
 
+  // SIMPLE STATE
+  const [currentTab, setCurrentTab] = useState("");
   const [file, setFile] = useState("");
   const [activeFilterTab, setActiveFilterTab] = useState({
     logoShirt: false,
@@ -33,7 +32,6 @@ const Customizer = () => {
   });
   const [cartOpen, setCartOpen] = useState(false);
 
-  // Use custom hooks
   const {
     loadingDesign,
     currentDesignId,
@@ -45,17 +43,7 @@ const Customizer = () => {
     resetDesign,
   } = useDesignLoader(authSnap.token);
 
-  const {
-    activeEditorTab,
-    setActiveEditorTab,
-    logoEditorOpen,
-    setLogoEditorOpen,
-    handleTabClick,
-    editorTabRef,
-    logoPickerRef,
-  } = useEditorTabs();
-
-  console.log("logoEditorOpen state:", logoEditorOpen);
+  console.log("📊 currentTab:", currentTab);
 
   // Set intro to false when entering customizer
   useEffect(() => {
@@ -127,7 +115,7 @@ const Customizer = () => {
     if (textureUrl) {
       handleDecals("text", textureUrl);
     }
-    setActiveEditorTab("");
+    setCurrentTab("");
   };
 
   const handleDecals = (type, result) => {
@@ -162,8 +150,12 @@ const Customizer = () => {
   const readFile = (type) => {
     reader(file).then((result) => {
       handleDecals(type, result);
-      setActiveEditorTab("");
+      setCurrentTab("");
     });
+  };
+
+  const handleTabClick = (tabName) => {
+    setCurrentTab((prev) => (prev === tabName ? "" : tabName));
   };
 
   return (
@@ -176,33 +168,19 @@ const Customizer = () => {
 
       {/* Editor Sidebar */}
       <EditorSidebar
-        activeEditorTab={activeEditorTab}
+        activeEditorTab={currentTab}
         onTabClick={handleTabClick}
         file={file}
         setFile={setFile}
         readFile={readFile}
-        editorTabRef={editorTabRef}
       />
 
       {/* Text Picker */}
-      {activeEditorTab === "textpicker" && <TextPicker applyText={applyText} />}
+      {currentTab === "textpicker" && <TextPicker applyText={applyText} />}
 
-      {/* Logo Picker */}
-      <div ref={logoPickerRef}>
-        {activeEditorTab === "logopicker" && (
-          <LogoPicker
-            onClose={() => setActiveEditorTab("")}
-            onOpenEditor={() => setLogoEditorOpen(true)}
-          />
-        )}
-      </div>
-
-      {/* Logo Editor - Rendered at root level */}
-      {logoEditorOpen && (
-        <LogoEditor
-          isOpen={logoEditorOpen}
-          onClose={() => setLogoEditorOpen(false)}
-        />
+      {/* Logo Editor - Opens when logopicker tab is clicked */}
+      {currentTab === "logopicker" && (
+        <LogoEditor isOpen={true} onClose={() => setCurrentTab("")} />
       )}
 
       {/* Header with buttons */}

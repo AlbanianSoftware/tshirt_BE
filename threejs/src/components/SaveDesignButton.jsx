@@ -46,16 +46,28 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
       const designData = {
         name: designName,
         color: snap.color,
-        shirtType: snap.shirtType, // ✨ NEW: Save shirt type
+        shirtType: snap.shirtType,
         logoDecal: snap.logoDecal,
         fullDecal: snap.fullDecal,
         isLogoTexture: snap.isLogoTexture,
         isFullTexture: snap.isFullTexture,
         textData: snap.text,
+        // ✨ NEW: Save logo transformation data
+        logo: {
+          url: snap.logo?.url || snap.logoDecal,
+          scale: snap.logo?.scale || 1,
+          position: snap.logo?.position || { x: 0, y: 0 },
+          rotation: snap.logo?.rotation || 0,
+          opacity: snap.logo?.opacity || 1,
+          blur: snap.logo?.blur || 0,
+          brightness: snap.logo?.brightness || 100,
+          contrast: snap.logo?.contrast || 100,
+          saturation: snap.logo?.saturation || 100,
+        },
         thumbnail,
       };
 
-      console.log("Saving design:", designData);
+      console.log("Saving design with logo data:", designData);
 
       const response = await fetch("http://localhost:3001/api/designs", {
         method: "POST",

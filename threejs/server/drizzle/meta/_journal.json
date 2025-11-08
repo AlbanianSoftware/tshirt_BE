@@ -43,6 +43,13 @@
       "when": 1762373912337,
       "tag": "0005_nifty_ma_gnuci",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1762613224681,
+      "tag": "0006_quick_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

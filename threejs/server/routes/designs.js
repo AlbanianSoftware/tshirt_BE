@@ -39,12 +39,13 @@ router.post("/", authenticate, async (req, res) => {
     const {
       name,
       color,
-      shirtType, // NEW FIELD
+      shirtType,
       logoDecal,
       fullDecal,
       isLogoTexture,
       isFullTexture,
       textData,
+      logo, // ✨ NEW: Logo transformation data
       thumbnail,
     } = req.body;
 
@@ -54,6 +55,7 @@ router.post("/", authenticate, async (req, res) => {
       shirtType,
       hasLogo: !!logoDecal,
       hasFull: !!fullDecal,
+      logoData: logo,
     });
 
     if (!name || !color) {
@@ -65,12 +67,13 @@ router.post("/", authenticate, async (req, res) => {
       userId: req.user.id,
       name,
       color,
-      shirtType: shirtType || "tshirt", // Default to tshirt
+      shirtType: shirtType || "tshirt",
       logoDecal: logoDecal || null,
       fullDecal: fullDecal || null,
       isLogoTexture: isLogoTexture || false,
       isFullTexture: isFullTexture || false,
       textData: textData ? JSON.stringify(textData) : null,
+      logoData: logo ? JSON.stringify(logo) : null, // ✨ NEW: Save logo transformations
       thumbnail: thumbnail || null,
     });
 
@@ -101,10 +104,11 @@ router.get("/", authenticate, async (req, res) => {
 
     console.log("✅ Found designs:", userDesigns.length);
 
-    // Parse textData JSON for each design
+    // Parse JSON fields for each design
     const parsedDesigns = userDesigns.map((design) => ({
       ...design,
       textData: design.textData ? JSON.parse(design.textData) : null,
+      logo: design.logoData ? JSON.parse(design.logoData) : null, // ✨ NEW: Parse logo data
     }));
 
     res.json(parsedDesigns);
@@ -130,10 +134,11 @@ router.get("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ error: "Design not found" });
     }
 
-    // Parse textData JSON
+    // Parse JSON fields
     const parsedDesign = {
       ...design,
       textData: design.textData ? JSON.parse(design.textData) : null,
+      logo: design.logoData ? JSON.parse(design.logoData) : null, // ✨ NEW: Parse logo data
     };
 
     res.json(parsedDesign);
@@ -150,12 +155,13 @@ router.put("/:id", authenticate, async (req, res) => {
     const {
       name,
       color,
-      shirtType, // NEW FIELD
+      shirtType,
       logoDecal,
       fullDecal,
       isLogoTexture,
       isFullTexture,
       textData,
+      logo, // ✨ NEW: Logo transformation data
       thumbnail,
     } = req.body;
 
@@ -174,7 +180,7 @@ router.put("/:id", authenticate, async (req, res) => {
       .set({
         name: name || existing.name,
         color: color || existing.color,
-        shirtType: shirtType || existing.shirtType, // NEW FIELD
+        shirtType: shirtType || existing.shirtType,
         logoDecal: logoDecal !== undefined ? logoDecal : existing.logoDecal,
         fullDecal: fullDecal !== undefined ? fullDecal : existing.fullDecal,
         isLogoTexture:
@@ -182,6 +188,7 @@ router.put("/:id", authenticate, async (req, res) => {
         isFullTexture:
           isFullTexture !== undefined ? isFullTexture : existing.isFullTexture,
         textData: textData ? JSON.stringify(textData) : existing.textData,
+        logoData: logo ? JSON.stringify(logo) : existing.logoData, // ✨ NEW: Update logo data
         thumbnail: thumbnail !== undefined ? thumbnail : existing.thumbnail,
       })
       .where(eq(designs.id, designId));

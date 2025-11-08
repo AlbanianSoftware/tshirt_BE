@@ -21,6 +21,10 @@ export const useDesignLoader = (token) => {
       position: { x: 0, y: 0 },
       rotation: 0,
       opacity: 1,
+      blur: 0,
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
     };
   };
 
@@ -51,9 +55,35 @@ export const useDesignLoader = (token) => {
         state.text = { ...state.text, ...design.textData };
       }
 
-      if (design.logoData) {
-        state.logo = { ...state.logo, ...design.logoData };
+      // ✨ FIXED: Check for both 'logo' and 'logoData' fields
+      if (design.logo) {
+        state.logo = {
+          url: design.logo.url || design.logoDecal || "/albania.png",
+          scale: design.logo.scale || 1,
+          position: design.logo.position || { x: 0, y: 0 },
+          rotation: design.logo.rotation || 0,
+          opacity: design.logo.opacity || 1,
+          blur: design.logo.blur || 0,
+          brightness: design.logo.brightness || 100,
+          contrast: design.logo.contrast || 100,
+          saturation: design.logo.saturation || 100,
+        };
+      } else if (design.logoData) {
+        // Fallback for old data structure
+        state.logo = {
+          url: design.logoData.url || design.logoDecal || "/albania.png",
+          scale: design.logoData.scale || 1,
+          position: design.logoData.position || { x: 0, y: 0 },
+          rotation: design.logoData.rotation || 0,
+          opacity: design.logoData.opacity || 1,
+          blur: design.logoData.blur || 0,
+          brightness: design.logoData.brightness || 100,
+          contrast: design.logoData.contrast || 100,
+          saturation: design.logoData.saturation || 100,
+        };
       }
+
+      console.log("✅ Loaded community design with logo data:", state.logo);
 
       return {
         logoShirt: design.isLogoTexture || false,
@@ -96,9 +126,39 @@ export const useDesignLoader = (token) => {
       state.isLogoTexture = design.isLogoTexture || false;
       state.isFullTexture = design.isFullTexture || false;
 
-      if (design.logoData) {
-        state.logo = { ...state.logo, ...design.logoData };
+      if (design.textData) {
+        state.text = { ...state.text, ...design.textData };
       }
+
+      // ✨ FIXED: Check for both 'logo' and 'logoData' fields
+      if (design.logo) {
+        state.logo = {
+          url: design.logo.url || design.logoDecal || "/albania.png",
+          scale: design.logo.scale || 1,
+          position: design.logo.position || { x: 0, y: 0 },
+          rotation: design.logo.rotation || 0,
+          opacity: design.logo.opacity || 1,
+          blur: design.logo.blur || 0,
+          brightness: design.logo.brightness || 100,
+          contrast: design.logo.contrast || 100,
+          saturation: design.logo.saturation || 100,
+        };
+      } else if (design.logoData) {
+        // Fallback for old data structure
+        state.logo = {
+          url: design.logoData.url || design.logoDecal || "/albania.png",
+          scale: design.logoData.scale || 1,
+          position: design.logoData.position || { x: 0, y: 0 },
+          rotation: design.logoData.rotation || 0,
+          opacity: design.logoData.opacity || 1,
+          blur: design.logoData.blur || 0,
+          brightness: design.logoData.brightness || 100,
+          contrast: design.logoData.contrast || 100,
+          saturation: design.logoData.saturation || 100,
+        };
+      }
+
+      console.log("✅ Loaded design with logo data:", state.logo);
 
       return {
         logoShirt: design.isLogoTexture || false,

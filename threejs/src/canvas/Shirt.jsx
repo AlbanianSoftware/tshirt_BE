@@ -20,14 +20,14 @@ const Shirt = () => {
       logoPosition: [0, 0.04, 0.15],
       logoScale: 0.25,
       fullScale: 1,
-      // Bounds for logo
+      // Wider bounds with same height
       logoBounds: {
-        minScale: 0.15,
-        maxScale: 0.5,
-        minX: -0.05,
-        maxX: 0.05,
-        minY: -0.05,
-        maxY: 0.13,
+        minScale: 0.1,
+        maxScale: 0.4,
+        minX: -0.15,
+        maxX: 0.15,
+        minY: -0.08,
+        maxY: 0.15,
       },
     },
     female_tshirt: {
@@ -42,12 +42,12 @@ const Shirt = () => {
       logoRotation: [1.6, Math.PI / 2, 0],
       fullScale: 1,
       logoBounds: {
-        minScale: 0.2,
-        maxScale: 0.7,
-        minX: 0.05,
-        maxX: 0.25,
-        minY: -0.05,
-        maxY: 0.15,
+        minScale: 0.15,
+        maxScale: 0.55,
+        minX: -0.02,
+        maxX: 0.32,
+        minY: -0.08,
+        maxY: 0.18,
       },
     },
   };
@@ -99,34 +99,32 @@ const Shirt = () => {
     logo: snap.logo,
   });
 
-  // Calculate logo transformations with bounds
+  // Calculate logo transformations with size limits
   const getLogoTransform = () => {
     const bounds = currentConfig.logoBounds;
 
-    // Clamp scale within bounds
+    // Start with the user's desired scale
+    const desiredScale = currentConfig.logoScale * (snap.logo.scale || 1);
+
+    // Clamp scale within bounds - simple size limit
     const clampedScale = Math.max(
       bounds.minScale,
-      Math.min(
-        bounds.maxScale,
-        currentConfig.logoScale * (snap.logo.scale || 1)
-      )
+      Math.min(bounds.maxScale, desiredScale)
     );
 
     // Convert pixel offsets to 3D space
-    const offsetMultiplier = 0.0005;
+    const offsetMultiplier = 0.0004;
     const xOffset = (snap.logo.position?.x || 0) * offsetMultiplier;
     const yOffset = (snap.logo.position?.y || 0) * offsetMultiplier;
 
-    // Calculate new position with clamping
+    // Calculate position - simple clamping without adjusting for size
     const basePos = currentConfig.logoPosition;
-    const newX = Math.max(
-      bounds.minX,
-      Math.min(bounds.maxX, basePos[0] + xOffset)
-    );
-    const newY = Math.max(
-      bounds.minY,
-      Math.min(bounds.maxY, basePos[1] + yOffset)
-    );
+    const desiredX = basePos[0] + xOffset;
+    const desiredY = basePos[1] + yOffset;
+
+    // Clamp position to bounds
+    const newX = Math.max(bounds.minX, Math.min(bounds.maxX, desiredX));
+    const newY = Math.max(bounds.minY, Math.min(bounds.maxY, desiredY));
 
     const newPosition = [newX, newY, basePos[2]];
 

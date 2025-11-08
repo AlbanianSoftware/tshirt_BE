@@ -30,6 +30,7 @@ export const designs = mysqlTable("designs", {
   isLogoTexture: boolean("is_logo_texture").default(false),
   isFullTexture: boolean("is_full_texture").default(false),
   textData: mediumtext("text_data"),
+  logoData: mediumtext("logo_data"), // ✨ NEW: Store logo transformation data (scale, position, rotation, etc.)
   thumbnail: mediumtext("thumbnail"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),

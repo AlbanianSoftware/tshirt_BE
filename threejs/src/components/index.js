@@ -12,4 +12,3 @@ export { default as PositionControls } from "./TextEditor/PositionControls";
 export { default as TextStyleControls } from "./TextEditor/TextStyleControls";
 export { default as TextPreview } from "./TextEditor/TextPreview";
 export { default as LogoEditor } from "./LogoEditor";
-export { default as LogoPicker } from "./LogoPicker";
