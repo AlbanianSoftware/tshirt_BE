@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { fadeAnimation } from "../../config/motion";
 import CustomButton from "../CustomButton";
 import SaveDesignButton from "../SaveDesignButton";
+import { markDesignAsSaved } from "../../store/shirtCache";
 
 const CustomizerHeader = ({
   currentDesignId,
@@ -117,4 +118,36 @@ const CustomizerHeader = ({
   );
 };
 
+const handleSaveDesign = async () => {
+  try {
+    // Your existing save logic here...
+    const response = await fetch("http://localhost:3001/api/designs/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        color: state.color,
+        logoDecal: state.logoDecal,
+        // ... rest of your design data
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setCurrentDesignId(data.designId);
+
+      // 🔥 MARK AS SAVED - This prevents the refresh warning
+      markDesignAsSaved();
+
+      alert("Design saved! ✅");
+    } else {
+      alert("Failed to save design");
+    }
+  } catch (error) {
+    console.error("Error saving design:", error);
+    alert("Failed to save design");
+  }
+};
 export default CustomizerHeader;

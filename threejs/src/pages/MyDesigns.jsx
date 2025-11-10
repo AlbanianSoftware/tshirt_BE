@@ -128,9 +128,30 @@ const MyDesigns = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            My Designs
-          </h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate("/customizer")}
+              className="p-2.5 backdrop-blur-xl bg-white/10 hover:bg-white/15 text-white rounded-xl transition-all duration-300 border border-white/10 shadow-lg hover:shadow-xl group"
+              title="Back to Customizer"
+            >
+              <svg
+                className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+              My Designs
+            </h1>
+          </div>
           <button
             onClick={() => navigate("/customizer")}
             className="px-5 py-2.5 backdrop-blur-xl bg-white/10 hover:bg-white/15 text-white rounded-xl transition-all duration-300 flex items-center gap-2 border border-white/10 shadow-lg hover:shadow-xl group"

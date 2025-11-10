@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useSnapshot } from "valtio";
 import authState from "../store/authStore";
 import state from "../store";
+import { markDesignAsSaved } from "../store/shirtCache";
 
 const SaveDesignButton = ({ setCurrentDesignId }) => {
   const snap = useSnapshot(state);
@@ -226,5 +227,5 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
     </>
   );
 };
-
+markDesignAsSaved();
 export default SaveDesignButton;

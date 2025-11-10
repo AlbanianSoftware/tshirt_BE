@@ -10,6 +10,14 @@ import { TextPicker } from "../components";
 import LogoEditor from "../components/LogoEditor";
 import Cart from "../components/Cart";
 
+// Import cache utilities
+import {
+  setupShirtCache,
+  restoreCachedShirt,
+  clearShirtCache,
+  hasCachedShirt,
+} from "../store/shirtCache";
+
 // Import refactored components
 import CustomizerHeader from "../components/customizer/CustomizerHeader";
 import EditorSidebar from "../components/customizer/EditorSidebar";
@@ -31,6 +39,7 @@ const Customizer = () => {
     stylishShirt: false,
   });
   const [cartOpen, setCartOpen] = useState(false);
+  const [cacheRestored, setCacheRestored] = useState(false); // Track cache restoration
 
   const {
     loadingDesign,
@@ -43,7 +52,16 @@ const Customizer = () => {
     resetDesign,
   } = useDesignLoader(authSnap.token);
 
-  console.log("📊 currentTab:", currentTab);
+  // 🔧 CACHE SETUP: Start auto-save on mount
+  useEffect(() => {
+    const unsubscribe = setupShirtCache();
+    console.log("✅ Cache system initialized");
+
+    // Cleanup on unmount
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   // Set intro to false when entering customizer
   useEffect(() => {
@@ -53,35 +71,60 @@ const Customizer = () => {
     };
   }, []);
 
-  // Load design from URL parameter
+  // 🔧 CACHE RESTORATION: Load cached design if no URL params
   useEffect(() => {
     const designId = searchParams.get("design");
     const communityDesignId = searchParams.get("communityDesign");
 
     const loadDesignData = async () => {
       if (communityDesignId) {
+        // Loading community design - clear cache
+        clearShirtCache();
         setViewingCommunityDesign(true);
         setCurrentDesignId(null);
         const filterTabs = await loadCommunityDesign(communityDesignId);
         if (filterTabs) setActiveFilterTab(filterTabs);
       } else if (designId && authSnap.token) {
+        // Loading saved design - clear cache
+        clearShirtCache();
         setViewingCommunityDesign(false);
         setCurrentDesignId(parseInt(designId));
         const filterTabs = await loadDesign(designId);
         if (filterTabs) setActiveFilterTab(filterTabs);
-      } else if (!designId && !communityDesignId) {
+      } else if (!designId && !communityDesignId && !cacheRestored) {
+        // No URL params - try to restore from cache
         setViewingCommunityDesign(false);
         setCurrentDesignId(null);
-        resetDesign();
-        setActiveFilterTab({
-          logoShirt: false,
-          stylishShirt: false,
-        });
+
+        const hasCache = hasCachedShirt();
+
+        if (hasCache) {
+          // Restore cached design
+          const restored = restoreCachedShirt();
+          if (restored) {
+            console.log("🎨 Restored your previous design!");
+
+            // Update filter tabs based on restored state
+            setActiveFilterTab({
+              logoShirt: state.isLogoTexture,
+              stylishShirt: state.isFullTexture,
+            });
+          }
+        } else {
+          // No cache - reset to defaults
+          resetDesign();
+          setActiveFilterTab({
+            logoShirt: false,
+            stylishShirt: false,
+          });
+        }
+
+        setCacheRestored(true);
       }
     };
 
     loadDesignData();
-  }, [searchParams, authSnap.token]);
+  }, [searchParams, authSnap.token, cacheRestored]);
 
   // Handle adding to cart
   const addToCart = async () => {
