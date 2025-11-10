@@ -3,7 +3,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { db } from "../db/index.js";
 import { designs } from "../db/schema.js";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, like, or, sql } from "drizzle-orm";
 
 const router = express.Router();
 const JWT_SECRET =
@@ -45,7 +45,7 @@ router.post("/", authenticate, async (req, res) => {
       isLogoTexture,
       isFullTexture,
       textData,
-      logo, // ✨ NEW: Logo transformation data
+      logo,
       thumbnail,
     } = req.body;
 
@@ -73,7 +73,7 @@ router.post("/", authenticate, async (req, res) => {
       isLogoTexture: isLogoTexture || false,
       isFullTexture: isFullTexture || false,
       textData: textData ? JSON.stringify(textData) : null,
-      logoData: logo ? JSON.stringify(logo) : null, // ✨ NEW: Save logo transformations
+      logoData: logo ? JSON.stringify(logo) : null,
       thumbnail: thumbnail || null,
     });
 
@@ -91,27 +91,70 @@ router.post("/", authenticate, async (req, res) => {
   }
 });
 
-// Get all designs for the logged-in user
+// 🔥 NEW: Get all designs with SERVER-SIDE SEARCH & PAGINATION
 router.get("/", authenticate, async (req, res) => {
   try {
-    console.log("📋 Fetching designs for user:", req.user.id);
+    const {
+      search,
+      limit = 12,
+      offset = 0,
+      shirtType, // Optional filter by shirt type
+    } = req.query;
 
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    console.log("📋 Fetching designs for user:", req.user.id, {
+      search,
+      limit: limitNum,
+      offset: offsetNum,
+      shirtType,
+    });
+
+    // Build WHERE conditions
+    const conditions = [eq(designs.userId, req.user.id)];
+
+    // 🔍 Search filter (searches in design name)
+    if (search) {
+      const searchTerm = `%${search}%`;
+      conditions.push(like(designs.name, searchTerm));
+    }
+
+    // 👕 Shirt type filter
+    if (shirtType && shirtType !== "all") {
+      conditions.push(eq(designs.shirtType, shirtType));
+    }
+
+    // Get total count for pagination
+    const [{ count: totalCount }] = await db
+      .select({ count: sql`count(*)` })
+      .from(designs)
+      .where(and(...conditions));
+
+    // Fetch designs with pagination
     const userDesigns = await db
       .select()
       .from(designs)
-      .where(eq(designs.userId, req.user.id))
-      .orderBy(desc(designs.updatedAt));
+      .where(and(...conditions))
+      .orderBy(desc(designs.updatedAt))
+      .limit(limitNum)
+      .offset(offsetNum);
 
-    console.log("✅ Found designs:", userDesigns.length);
+    console.log("✅ Found designs:", userDesigns.length, "of", totalCount);
 
     // Parse JSON fields for each design
     const parsedDesigns = userDesigns.map((design) => ({
       ...design,
       textData: design.textData ? JSON.parse(design.textData) : null,
-      logo: design.logoData ? JSON.parse(design.logoData) : null, // ✨ NEW: Parse logo data
+      logo: design.logoData ? JSON.parse(design.logoData) : null,
     }));
 
-    res.json(parsedDesigns);
+    res.json({
+      designs: parsedDesigns,
+      total: Number(totalCount),
+      limit: limitNum,
+      offset: offsetNum,
+    });
   } catch (error) {
     console.error("❌ Error fetching designs:", error);
     res
@@ -138,7 +181,7 @@ router.get("/:id", authenticate, async (req, res) => {
     const parsedDesign = {
       ...design,
       textData: design.textData ? JSON.parse(design.textData) : null,
-      logo: design.logoData ? JSON.parse(design.logoData) : null, // ✨ NEW: Parse logo data
+      logo: design.logoData ? JSON.parse(design.logoData) : null,
     };
 
     res.json(parsedDesign);
@@ -161,7 +204,7 @@ router.put("/:id", authenticate, async (req, res) => {
       isLogoTexture,
       isFullTexture,
       textData,
-      logo, // ✨ NEW: Logo transformation data
+      logo,
       thumbnail,
     } = req.body;
 
@@ -188,7 +231,7 @@ router.put("/:id", authenticate, async (req, res) => {
         isFullTexture:
           isFullTexture !== undefined ? isFullTexture : existing.isFullTexture,
         textData: textData ? JSON.stringify(textData) : existing.textData,
-        logoData: logo ? JSON.stringify(logo) : existing.logoData, // ✨ NEW: Update logo data
+        logoData: logo ? JSON.stringify(logo) : existing.logoData,
         thumbnail: thumbnail !== undefined ? thumbnail : existing.thumbnail,
       })
       .where(eq(designs.id, designId));
