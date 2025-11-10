@@ -31,10 +31,19 @@ const PublishDesignModal = ({ isOpen, onClose, onSuccess }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setDesigns(data);
+
+        // Handle both old array format and new object format
+        if (Array.isArray(data)) {
+          setDesigns(data);
+        } else if (data.designs && Array.isArray(data.designs)) {
+          setDesigns(data.designs);
+        } else {
+          setDesigns([]);
+        }
       }
     } catch (error) {
       console.error("Error fetching designs:", error);
+      setDesigns([]);
     } finally {
       setLoading(false);
     }
