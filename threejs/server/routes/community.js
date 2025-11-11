@@ -7,8 +7,7 @@ import { communityPosts, designs, users } from "../db/schema.js";
 import { eq, desc, like, or, and, sql } from "drizzle-orm";
 
 const router = express.Router();
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET || "";
 
 const publishSchema = z.object({
   designId: z.number().positive(),
