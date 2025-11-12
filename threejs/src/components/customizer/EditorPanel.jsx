@@ -3,6 +3,7 @@ import { slideAnimation } from "../../config/motion";
 import { EditorTabs } from "../../config/constants";
 import Tab from "../Tab";
 import stylishTshirt from "../../assets/stylish-tshirt.png";
+import changelogo from "../../assets/changelogo.png";
 import ColorPicker from "../ColorPicker";
 import FilePicker from "../FilePicker";
 import ShirtTypePicker from "../ShirtTypePicker";

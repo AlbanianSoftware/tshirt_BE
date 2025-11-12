@@ -5,6 +5,7 @@ import Tab from "../Tab";
 import ColorPicker from "../ColorPicker";
 import FilePicker from "../FilePicker";
 import ShirtTypePicker from "../ShirtTypePicker";
+import changelogo from "../../assets/changelogo.png";
 import stylishTshirt from "../../assets/stylish-tshirt.png";
 
 const EditorSidebar = ({
@@ -50,7 +51,7 @@ const EditorSidebar = ({
           <Tab
             tab={{
               name: "shirttypepicker",
-              icon: stylishTshirt,
+              icon: changelogo,
             }}
             handleClick={() => onTabClick("shirttypepicker")}
           />

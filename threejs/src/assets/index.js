@@ -4,5 +4,14 @@ import download from "./download.png";
 
 import logoShirt from "./logo-tshirt.png";
 import stylishShirt from "./stylish-tshirt.png";
-
-export { fileIcon, swatch, download, logoShirt, stylishShirt };
+import custom from "./custom.png";
+import changelogo from "./changelogo.png";
+export {
+  fileIcon,
+  swatch,
+  download,
+  logoShirt,
+  stylishShirt,
+  custom,
+  changelogo,
+};

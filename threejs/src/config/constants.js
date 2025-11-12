@@ -1,4 +1,11 @@
-import { swatch, fileIcon, logoShirt, stylishShirt } from "../assets";
+import {
+  swatch,
+  fileIcon,
+  logoShirt,
+  stylishShirt,
+  custom,
+  changelogo,
+} from "../assets";
 
 export const EditorTabs = [
   {
@@ -15,7 +22,7 @@ export const EditorTabs = [
   },
   {
     name: "logopicker",
-    icon: logoShirt, // use any icon
+    icon: custom, // use any icon
   },
 ];
 
