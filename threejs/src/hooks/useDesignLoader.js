@@ -15,6 +15,7 @@ export const useDesignLoader = (token) => {
     state.shirtType = "tshirt";
     state.logoDecal = "/albania.png";
     state.fullDecal = "/circuit.png";
+    state.logoPosition = ["front"]; // ✨ Reset logo position
     state.logo = {
       url: "/albania.png",
       scale: 1,
@@ -51,11 +52,16 @@ export const useDesignLoader = (token) => {
       state.isLogoTexture = design.isLogoTexture || false;
       state.isFullTexture = design.isFullTexture || false;
 
+      // ✨ FIXED: Restore logo position
+      if (design.logoPosition && Array.isArray(design.logoPosition)) {
+        state.logoPosition = design.logoPosition;
+      }
+
       if (design.textData) {
         state.text = { ...state.text, ...design.textData };
       }
 
-      // ✨ FIXED: Check for both 'logo' and 'logoData' fields
+      // Check for both 'logo' and 'logoData' fields
       if (design.logo) {
         state.logo = {
           url: design.logo.url || design.logoDecal || "/albania.png",
@@ -84,6 +90,7 @@ export const useDesignLoader = (token) => {
       }
 
       console.log("✅ Loaded community design with logo data:", state.logo);
+      console.log("✅ Logo positions:", state.logoPosition);
 
       return {
         logoShirt: design.isLogoTexture || false,
@@ -126,11 +133,16 @@ export const useDesignLoader = (token) => {
       state.isLogoTexture = design.isLogoTexture || false;
       state.isFullTexture = design.isFullTexture || false;
 
+      // ✨ FIXED: Restore logo position
+      if (design.logoPosition && Array.isArray(design.logoPosition)) {
+        state.logoPosition = design.logoPosition;
+      }
+
       if (design.textData) {
         state.text = { ...state.text, ...design.textData };
       }
 
-      // ✨ FIXED: Check for both 'logo' and 'logoData' fields
+      // Check for both 'logo' and 'logoData' fields
       if (design.logo) {
         state.logo = {
           url: design.logo.url || design.logoDecal || "/albania.png",
@@ -159,6 +171,7 @@ export const useDesignLoader = (token) => {
       }
 
       console.log("✅ Loaded design with logo data:", state.logo);
+      console.log("✅ Logo positions:", state.logoPosition);
 
       return {
         logoShirt: design.isLogoTexture || false,

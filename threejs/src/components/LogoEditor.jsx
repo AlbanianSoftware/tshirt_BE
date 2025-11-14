@@ -1,8 +1,24 @@
+import { useRef, useEffect } from "react";
 import { useSnapshot } from "valtio";
 import state from "../store";
 
 const LogoEditor = ({ isOpen, onClose }) => {
   const snap = useSnapshot(state);
+  const editorRef = useRef(null);
+
+  // 🆕 Close when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (editorRef.current && !editorRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
 
   if (!isOpen) {
     return null;
@@ -43,12 +59,41 @@ const LogoEditor = ({ isOpen, onClose }) => {
     state.logo.rotation = 0;
   };
 
+  // Logo Position Picker Functions
+  const positions = [
+    { key: "front", label: "Front", icon: "👕" },
+    { key: "back", label: "Back", icon: "🔙" },
+    { key: "leftSleeve", label: "Left Sleeve", icon: "👈" },
+    { key: "rightSleeve", label: "Right Sleeve", icon: "👉" },
+  ];
+
+  const togglePosition = (posKey) => {
+    const current = snap.logoPosition || ["front"];
+
+    if (current.includes(posKey)) {
+      // Remove position
+      const filtered = current.filter((p) => p !== posKey);
+      state.logoPosition = filtered.length > 0 ? filtered : ["front"];
+    } else {
+      // Add position
+      state.logoPosition = [...current, posKey];
+    }
+  };
+
+  const isPositionActive = (posKey) => {
+    return (snap.logoPosition || ["front"]).includes(posKey);
+  };
+
   return (
     <div className="fixed left-0 top-0 bottom-0 z-[9999] flex items-center pl-24">
-      <div className="bg-black/40 backdrop-blur-xl rounded-2xl shadow-2xl w-[380px] border border-white/10">
+      <div
+        ref={editorRef}
+        className="bg-black/40 backdrop-blur-xl rounded-2xl shadow-2xl w-[380px] border border-white/10"
+      >
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-bold text-white">Logo Editor</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg"
@@ -100,8 +145,41 @@ const LogoEditor = ({ isOpen, onClose }) => {
             </div>
           )}
 
+          {/* Logo Position Section */}
+          <div className="mb-5 p-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl">
+            <h3 className="text-sm font-semibold text-gray-200 mb-3">
+              Logo Placement
+            </h3>
+            <div className="space-y-2">
+              {positions.map((pos) => (
+                <button
+                  key={pos.key}
+                  onClick={() => togglePosition(pos.key)}
+                  className={`
+                    w-full px-3 py-2.5 rounded-lg transition-all font-medium text-xs
+                    flex items-center gap-2
+                    ${
+                      isPositionActive(pos.key)
+                        ? "bg-white/20 text-white border-2 border-white/40 shadow-lg"
+                        : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white"
+                    }
+                  `}
+                >
+                  <span className="text-base">{pos.icon}</span>
+                  <span>{pos.label}</span>
+                  {isPositionActive(pos.key) && (
+                    <span className="ml-auto text-green-400 text-sm">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-3">
+              Select multiple positions to show logo in different areas
+            </p>
+          </div>
+
           {/* Controls Container with scroll */}
-          <div className="space-y-4 mb-5 max-h-[420px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-gray-500 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400">
+          <div className="space-y-4 mb-5 max-h-[320px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-gray-500 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400">
             {/* Size */}
             <div className="bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/10">
               <div className="flex justify-between items-center mb-3">

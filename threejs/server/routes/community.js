@@ -1,4 +1,4 @@
-// routes/community.js - COMPLETE FIXED VERSION
+// routes/community.js - UPDATED with logoPosition support
 import express from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -29,15 +29,10 @@ const requireAuth = (req, res, next) => {
   }
 };
 
-// 📖 GET all community posts with SERVER-SIDE PAGINATION & FILTERING
+// GET all community posts with pagination & filtering
 router.get("/", async (req, res) => {
   try {
-    const {
-      search,
-      limit = 10,
-      offset = 0,
-      userId, // Filter by userId for "My Designs"
-    } = req.query;
+    const { search, limit = 10, offset = 0, userId } = req.query;
 
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);
@@ -49,7 +44,6 @@ router.get("/", async (req, res) => {
       userId,
     });
 
-    // Build base query
     let query = db
       .select({
         id: communityPosts.id,
@@ -68,6 +62,7 @@ router.get("/", async (req, res) => {
         isFullTexture: designs.isFullTexture,
         textData: designs.textData,
         logoData: designs.logoData,
+        logoPosition: designs.logoPosition, // 🆕 NEW
         thumbnail: designs.thumbnail,
 
         userId: users.id,
@@ -77,10 +72,8 @@ router.get("/", async (req, res) => {
       .leftJoin(designs, eq(communityPosts.designId, designs.id))
       .leftJoin(users, eq(communityPosts.userId, users.id));
 
-    // Build WHERE conditions
     const conditions = [];
 
-    // 🔍 Search filter
     if (search) {
       const searchTerm = `%${search}%`;
       conditions.push(
@@ -92,18 +85,15 @@ router.get("/", async (req, res) => {
       );
     }
 
-    // 👤 User filter for "My Designs"
     if (userId) {
       console.log("🔍 Filtering by userId:", userId);
       conditions.push(eq(communityPosts.userId, Number(userId)));
     }
 
-    // Apply WHERE conditions
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
 
-    // Get total count for pagination
     let countQuery = db
       .select({ count: sql`count(*)` })
       .from(communityPosts)
@@ -116,7 +106,6 @@ router.get("/", async (req, res) => {
 
     const [{ count: totalCount }] = await countQuery;
 
-    // 🔥 FIX: Get authenticated user's designs count
     let myDesignsCount = 0;
     const token = req.headers.authorization?.split(" ")[1];
     if (token) {
@@ -142,18 +131,19 @@ router.get("/", async (req, res) => {
       }
     }
 
-    // Fetch posts with pagination
     const posts = await query
       .limit(limitNum)
       .offset(offsetNum)
       .orderBy(desc(communityPosts.createdAt));
 
-    // Parse JSON fields
     const parsedPosts = posts.map((post) => ({
       ...post,
       userId: Number(post.userId),
       textData: post.textData ? JSON.parse(post.textData) : null,
       logo: post.logoData ? JSON.parse(post.logoData) : null,
+      logoPosition: post.logoPosition
+        ? JSON.parse(post.logoPosition)
+        : ["front"], // 🆕 NEW
     }));
 
     console.log("✅ Returning:", {
@@ -175,7 +165,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 📖 GET single post by ID (PUBLIC)
+// GET single post by ID
 router.get("/:id", async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
@@ -198,6 +188,7 @@ router.get("/:id", async (req, res) => {
         isFullTexture: designs.isFullTexture,
         textData: designs.textData,
         logoData: designs.logoData,
+        logoPosition: designs.logoPosition, // 🆕 NEW
         thumbnail: designs.thumbnail,
 
         userId: users.id,
@@ -212,18 +203,19 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    // Increment view count
     await db
       .update(communityPosts)
       .set({ views: post.views + 1 })
       .where(eq(communityPosts.id, postId));
 
-    // Parse JSON fields
     const parsedPost = {
       ...post,
       userId: Number(post.userId),
       textData: post.textData ? JSON.parse(post.textData) : null,
       logo: post.logoData ? JSON.parse(post.logoData) : null,
+      logoPosition: post.logoPosition
+        ? JSON.parse(post.logoPosition)
+        : ["front"], // 🆕 NEW
     };
 
     res.json(parsedPost);
@@ -233,7 +225,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 🎨 GET design data for community post (PUBLIC)
+// GET design data for community post
 router.get("/:id/design", async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
@@ -248,6 +240,7 @@ router.get("/:id/design", async (req, res) => {
         isFullTexture: designs.isFullTexture,
         textData: designs.textData,
         logoData: designs.logoData,
+        logoPosition: designs.logoPosition, // 🆕 NEW
       })
       .from(communityPosts)
       .leftJoin(designs, eq(communityPosts.designId, designs.id))
@@ -261,6 +254,9 @@ router.get("/:id/design", async (req, res) => {
       ...post,
       textData: post.textData ? JSON.parse(post.textData) : null,
       logo: post.logoData ? JSON.parse(post.logoData) : null,
+      logoPosition: post.logoPosition
+        ? JSON.parse(post.logoPosition)
+        : ["front"], // 🆕 NEW
     };
 
     res.json(design);
@@ -270,7 +266,7 @@ router.get("/:id/design", async (req, res) => {
   }
 });
 
-// ✍️ POST - Publish a design
+// POST - Publish a design
 router.post("/", requireAuth, async (req, res) => {
   try {
     const validated = publishSchema.parse(req.body);
@@ -327,7 +323,7 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
-// 🗑️ DELETE - Remove post from community
+// DELETE - Remove post from community
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);

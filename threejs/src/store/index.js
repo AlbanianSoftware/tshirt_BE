@@ -5,11 +5,12 @@ const state = proxy({
   color: "#353934",
   isLogoTexture: true,
   isFullTexture: false,
-  // store/index.js
-  logoDecal: "/albania.png", // Changed from "./albania.png"
-  fullDecal: "/circuit.png", // Changed from "./circuit.png"
-  // NEW: Shirt type selection
+  logoDecal: "/albania.png",
+  fullDecal: "/circuit.png",
   shirtType: "tshirt", // 'tshirt', 'long_sleeve', 'female_tshirt'
+
+  // NEW: Logo position control - can be array for multiple positions
+  logoPosition: ["front"], // Options: 'front', 'back', 'leftSleeve', 'rightSleeve'
 
   // Text configuration with advanced properties
   text: {
@@ -18,11 +19,11 @@ const state = proxy({
     size: 100,
     font: "Arial",
     position: {
-      x: 50, // percentage (0-100)
-      y: 50, // percentage (0-100)
+      x: 50,
+      y: 50,
     },
-    rotation: 0, // degrees
-    alignment: "center", // "left", "center", "right"
+    rotation: 0,
+    alignment: "center",
     style: {
       bold: true,
       italic: false,
@@ -37,17 +38,17 @@ const state = proxy({
 
   // Logo configuration with size and position controls
   logo: {
-    url: "/albania.png", // Current logo URL
-    scale: 1, // Size multiplier (0.1 - 3)
+    url: "/albania.png",
+    scale: 1,
     position: {
-      x: 0, // pixel offset from center (-200 to 200)
-      y: 0, // pixel offset from center (-200 to 200)
+      x: 0,
+      y: 0,
     },
-    rotation: 0, // degrees (0-360)
-    opacity: 1, // transparency (0-1)
+    rotation: 0,
+    opacity: 1,
   },
 
-  // Legacy support (can be removed later if not needed elsewhere)
+  // Legacy support
   customText: "",
   textColor: "#000000",
   textSize: 100,

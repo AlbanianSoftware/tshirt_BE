@@ -6,6 +6,7 @@ import {
   timestamp,
   boolean,
   mediumtext,
+  json,
 } from "drizzle-orm/mysql-core";
 
 // Users table
@@ -30,13 +31,13 @@ export const designs = mysqlTable("designs", {
   isLogoTexture: boolean("is_logo_texture").default(false),
   isFullTexture: boolean("is_full_texture").default(false),
   textData: mediumtext("text_data"),
-  logoData: mediumtext("logo_data"), // ✨ NEW: Store logo transformation data (scale, position, rotation, etc.)
+  logoData: mediumtext("logo_data"),
+  logoPosition: mediumtext("logo_position"),
   thumbnail: mediumtext("thumbnail"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
-// 🆕 Community Posts Table
 export const communityPosts = mysqlTable("community_posts", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id")
@@ -48,7 +49,8 @@ export const communityPosts = mysqlTable("community_posts", {
   title: varchar("title", { length: 255 }).notNull(),
   description: mediumtext("description"),
   views: int("views").default(0),
-  likes: int("likes").default(0), // Optional: for future feature
+  likes: int("likes").default(0),
+  deletedAt: timestamp("deleted_at"), // 🆕 Soft delete field (null = not deleted)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });

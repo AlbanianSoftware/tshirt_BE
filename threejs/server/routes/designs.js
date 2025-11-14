@@ -1,4 +1,4 @@
-// routes/designs.js
+// routes/designs.js - UPDATED
 import express from "express";
 import jwt from "jsonwebtoken";
 import { db } from "../db/index.js";
@@ -9,7 +9,6 @@ const router = express.Router();
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
-// Middleware to check JWT authentication
 const authenticate = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
@@ -46,6 +45,7 @@ router.post("/", authenticate, async (req, res) => {
       isFullTexture,
       textData,
       logo,
+      logoPosition, // 🆕 NEW
       thumbnail,
     } = req.body;
 
@@ -56,6 +56,7 @@ router.post("/", authenticate, async (req, res) => {
       hasLogo: !!logoDecal,
       hasFull: !!fullDecal,
       logoData: logo,
+      logoPosition, // 🆕 NEW
     });
 
     if (!name || !color) {
@@ -74,6 +75,9 @@ router.post("/", authenticate, async (req, res) => {
       isFullTexture: isFullTexture || false,
       textData: textData ? JSON.stringify(textData) : null,
       logoData: logo ? JSON.stringify(logo) : null,
+      logoPosition: logoPosition
+        ? JSON.stringify(logoPosition)
+        : JSON.stringify(["front"]), // 🆕 NEW
       thumbnail: thumbnail || null,
     });
 
@@ -91,15 +95,10 @@ router.post("/", authenticate, async (req, res) => {
   }
 });
 
-// 🔥 NEW: Get all designs with SERVER-SIDE SEARCH & PAGINATION
+// Get all designs with SERVER-SIDE SEARCH & PAGINATION
 router.get("/", authenticate, async (req, res) => {
   try {
-    const {
-      search,
-      limit = 12,
-      offset = 0,
-      shirtType, // Optional filter by shirt type
-    } = req.query;
+    const { search, limit = 12, offset = 0, shirtType } = req.query;
 
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);
@@ -111,27 +110,22 @@ router.get("/", authenticate, async (req, res) => {
       shirtType,
     });
 
-    // Build WHERE conditions
     const conditions = [eq(designs.userId, req.user.id)];
 
-    // 🔍 Search filter (searches in design name)
     if (search) {
       const searchTerm = `%${search}%`;
       conditions.push(like(designs.name, searchTerm));
     }
 
-    // 👕 Shirt type filter
     if (shirtType && shirtType !== "all") {
       conditions.push(eq(designs.shirtType, shirtType));
     }
 
-    // Get total count for pagination
     const [{ count: totalCount }] = await db
       .select({ count: sql`count(*)` })
       .from(designs)
       .where(and(...conditions));
 
-    // Fetch designs with pagination
     const userDesigns = await db
       .select()
       .from(designs)
@@ -142,11 +136,13 @@ router.get("/", authenticate, async (req, res) => {
 
     console.log("✅ Found designs:", userDesigns.length, "of", totalCount);
 
-    // Parse JSON fields for each design
     const parsedDesigns = userDesigns.map((design) => ({
       ...design,
       textData: design.textData ? JSON.parse(design.textData) : null,
       logo: design.logoData ? JSON.parse(design.logoData) : null,
+      logoPosition: design.logoPosition
+        ? JSON.parse(design.logoPosition)
+        : ["front"], // 🆕 NEW
     }));
 
     res.json({
@@ -177,11 +173,13 @@ router.get("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ error: "Design not found" });
     }
 
-    // Parse JSON fields
     const parsedDesign = {
       ...design,
       textData: design.textData ? JSON.parse(design.textData) : null,
       logo: design.logoData ? JSON.parse(design.logoData) : null,
+      logoPosition: design.logoPosition
+        ? JSON.parse(design.logoPosition)
+        : ["front"], // 🆕 NEW
     };
 
     res.json(parsedDesign);
@@ -205,10 +203,10 @@ router.put("/:id", authenticate, async (req, res) => {
       isFullTexture,
       textData,
       logo,
+      logoPosition, // 🆕 NEW
       thumbnail,
     } = req.body;
 
-    // Verify ownership
     const [existing] = await db
       .select()
       .from(designs)
@@ -232,6 +230,9 @@ router.put("/:id", authenticate, async (req, res) => {
           isFullTexture !== undefined ? isFullTexture : existing.isFullTexture,
         textData: textData ? JSON.stringify(textData) : existing.textData,
         logoData: logo ? JSON.stringify(logo) : existing.logoData,
+        logoPosition: logoPosition
+          ? JSON.stringify(logoPosition)
+          : existing.logoPosition, // 🆕 NEW
         thumbnail: thumbnail !== undefined ? thumbnail : existing.thumbnail,
       })
       .where(eq(designs.id, designId));
@@ -248,7 +249,6 @@ router.delete("/:id", authenticate, async (req, res) => {
   try {
     const designId = parseInt(req.params.id);
 
-    // Verify ownership before deleting
     const [existing] = await db
       .select()
       .from(designs)

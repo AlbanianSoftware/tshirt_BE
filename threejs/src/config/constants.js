@@ -22,7 +22,7 @@ export const EditorTabs = [
   },
   {
     name: "logopicker",
-    icon: custom, // use any icon
+    icon: stylishShirt, // use any icon
   },
 ];
 

@@ -50,6 +50,20 @@
       "when": 1762613224681,
       "tag": "0006_quick_sharon_ventura",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1763036892700,
+      "tag": "0007_bent_gertrude_yorkes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1763038887930,
+      "tag": "0008_petite_bedlam",
+      "breakpoints": true
     }
   ]
 }

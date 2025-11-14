@@ -34,76 +34,97 @@ const LoginModal = () => {
   if (!snap.showLoginModal) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 w-full max-w-md relative border border-gray-700 shadow-2xl backdrop-blur-md bg-opacity-95">
-        <button
-          onClick={() => (authState.showLoginModal = false)}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-700"
-        >
-          ×
-        </button>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="relative w-full max-w-md">
+        {/* Glass morphism card */}
+        <div className="relative bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-2xl">
+          {/* Subtle gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-3xl pointer-events-none"></div>
 
-        <h2 className="text-3xl font-bold mb-2 text-white">Welcome Back</h2>
-        <p className="text-gray-400 mb-6 text-sm">Sign in to continue</p>
-
-        {error && (
-          <div className="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-50 text-red-400 px-4 py-3 rounded-lg mb-6 backdrop-blur-sm">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-5">
-            <label className="block text-gray-300 text-sm font-medium mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500 backdrop-blur-sm transition-all"
-              placeholder="your@email.com"
-              required
-            />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-gray-300 text-sm font-medium mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-800 bg-opacity-50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500 backdrop-blur-sm transition-all"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-3 rounded-lg hover:from-blue-500 hover:to-blue-400 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-400">
-            Don't have an account?{" "}
+          <div className="relative z-10">
             <button
-              onClick={() => {
-                authState.showLoginModal = false;
-                authState.showRegisterModal = true;
-              }}
-              className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+              onClick={() => (authState.showLoginModal = false)}
+              className="absolute -top-2 -right-2 text-gray-400 hover:text-white transition-all text-2xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 backdrop-blur-sm"
             >
-              Create one
+              ×
             </button>
-          </p>
+
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold mb-2 text-white tracking-tight">
+                Welcome Back
+              </h2>
+              <p className="text-gray-400 text-sm">
+                Sign in to continue your journey
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 text-red-300 px-4 py-3 rounded-xl mb-6">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-white placeholder-gray-500 transition-all hover:bg-white/10"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 text-sm font-medium mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSubmit(e);
+                  }}
+                  className="w-full px-4 py-3 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-white placeholder-gray-500 transition-all hover:bg-white/10"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full mt-6 bg-white/10 backdrop-blur-sm border border-white/20 text-white py-3.5 rounded-xl hover:bg-white/20 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <p className="text-sm text-gray-400 text-center">
+                Don't have an account?{" "}
+                <button
+                  onClick={() => {
+                    authState.showLoginModal = false;
+                    authState.showRegisterModal = true;
+                  }}
+                  className="text-blue-400 hover:text-blue-300 font-semibold transition-colors hover:underline"
+                >
+                  Create one
+                </button>
+              </p>
+            </div>
+          </div>
         </div>
+
+        {/* Decorative blur elements */}
+        <div className="absolute -top-20 -left-20 w-40 h-40 bg-gray-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-gray-400/20 rounded-full blur-3xl pointer-events-none"></div>
       </div>
     </div>
   );

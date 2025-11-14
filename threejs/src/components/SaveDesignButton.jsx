@@ -53,7 +53,7 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
         isLogoTexture: snap.isLogoTexture,
         isFullTexture: snap.isFullTexture,
         textData: snap.text,
-        // ✨ NEW: Save logo transformation data
+        // ✨ Logo transformation data (x/y position, scale, rotation, etc.)
         logo: {
           url: snap.logo?.url || snap.logoDecal,
           scale: snap.logo?.scale || 1,
@@ -65,6 +65,8 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
           contrast: snap.logo?.contrast || 100,
           saturation: snap.logo?.saturation || 100,
         },
+        // 🆕 NEW: Which sides of the shirt have the logo (front, back, sleeves)
+        logoPosition: snap.logoPosition || ["front"],
         thumbnail,
       };
 
@@ -87,9 +89,10 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
         throw new Error(result.error || "Failed to save design");
       }
 
-      // Set the current design ID using designId from response
+      // Set the current design ID and mark as saved
       if (result.designId && setCurrentDesignId) {
         setCurrentDesignId(result.designId);
+        markDesignAsSaved(result.designId); // ✅ Fixed: Call with designId after save
         console.log("✅ Design ID set:", result.designId);
       }
 
@@ -227,5 +230,5 @@ const SaveDesignButton = ({ setCurrentDesignId }) => {
     </>
   );
 };
-markDesignAsSaved();
+
 export default SaveDesignButton;

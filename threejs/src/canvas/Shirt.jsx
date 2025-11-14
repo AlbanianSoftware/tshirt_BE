@@ -17,18 +17,63 @@ const Shirt = () => {
       position: [0, 0, 0],
       rotation: [0, 0, 0],
       scale: 1,
-      logoPosition: [0, 0.04, 0.15],
-      logoScale: 0.25,
-      fullScale: 1,
-      // Wider bounds with same height
-      logoBounds: {
-        minScale: 0.1,
-        maxScale: 0.4,
-        minX: -0.15,
-        maxX: 0.15,
-        minY: -0.08,
-        maxY: 0.15,
+
+      // Multiple logo positions
+      logoPositions: {
+        front: {
+          position: [0, 0.04, 0.15],
+          rotation: [0, 0, 0],
+          scale: 0.25,
+          bounds: {
+            minScale: 0.1,
+            maxScale: 0.4,
+            minX: -0.15,
+            maxX: 0.15,
+            minY: -0.08,
+            maxY: 0.15,
+          },
+        },
+        back: {
+          position: [0, 0.04, -0.15],
+          rotation: [0, Math.PI, 0],
+          scale: 0.25,
+          bounds: {
+            minScale: 0.1,
+            maxScale: 0.4,
+            minX: -0.15,
+            maxX: 0.15,
+            minY: -0.08,
+            maxY: 0.15,
+          },
+        },
+        leftSleeve: {
+          position: [-0.135, 0.15, 0.0],
+          rotation: [0, -Math.PI / 3, 0],
+          scale: 0.1,
+          bounds: {
+            minScale: 0.05,
+            maxScale: 0.15,
+            minX: -0.18,
+            maxX: -0.1,
+            minY: 0.1,
+            maxY: 0.2,
+          },
+        },
+        rightSleeve: {
+          position: [0.135, 0.15, 0.0],
+          rotation: [0, Math.PI / 3, 0],
+          scale: 0.1,
+          bounds: {
+            minScale: 0.05,
+            maxScale: 0.15,
+            minX: 0.1,
+            maxX: 0.18,
+            minY: 0.1,
+            maxY: 0.2,
+          },
+        },
       },
+      fullScale: 1,
     },
     female_tshirt: {
       modelPath: "/models/female_tshirt.glb",
@@ -37,18 +82,62 @@ const Shirt = () => {
       position: [0, 0, 0],
       rotation: [-Math.PI / 2, 0, -1.5],
       scale: 0.7,
-      logoPosition: [0.15, 0, 0.1],
-      logoScale: 0.35,
-      logoRotation: [1.6, Math.PI / 2, 0],
-      fullScale: 1,
-      logoBounds: {
-        minScale: 0.15,
-        maxScale: 0.55,
-        minX: -0.02,
-        maxX: 0.32,
-        minY: -0.08,
-        maxY: 0.18,
+
+      logoPositions: {
+        front: {
+          position: [0.15, 0, 0.1],
+          rotation: [1.6, Math.PI / 2, 0],
+          scale: 0.35,
+          bounds: {
+            minScale: 0.15,
+            maxScale: 0.55,
+            minX: -0.02,
+            maxX: 0.32,
+            minY: -0.08,
+            maxY: 0.18,
+          },
+        },
+        back: {
+          position: [-0.15, 0, 0.1],
+          rotation: [1.6, -Math.PI / 2, 0],
+          scale: 0.35,
+          bounds: {
+            minScale: 0.15,
+            maxScale: 0.55,
+            minX: -0.32,
+            maxX: 0.02,
+            minY: -0.08,
+            maxY: 0.18,
+          },
+        },
+        leftSleeve: {
+          position: [0.1, 0, -0.08],
+          rotation: [1.6, Math.PI / 2.2, 0],
+          scale: 0.15,
+          bounds: {
+            minScale: 0.08,
+            maxScale: 0.22,
+            minX: 0.05,
+            maxX: 0.15,
+            minY: -0.12,
+            maxY: -0.04,
+          },
+        },
+        rightSleeve: {
+          position: [-0.1, 0, -0.08],
+          rotation: [1.6, -Math.PI / 2.2, 0],
+          scale: 0.15,
+          bounds: {
+            minScale: 0.08,
+            maxScale: 0.22,
+            minX: -0.15,
+            maxX: -0.05,
+            minY: -0.12,
+            maxY: -0.04,
+          },
+        },
       },
+      fullScale: 1,
     },
   };
 
@@ -97,16 +186,20 @@ const Shirt = () => {
     isFullTexture: snap.isFullTexture,
     shirtType: snap.shirtType,
     logo: snap.logo,
+    logoPosition: snap.logoPosition,
   });
 
-  // Calculate logo transformations with size limits
-  const getLogoTransform = () => {
-    const bounds = currentConfig.logoBounds;
+  // Calculate logo transformations for a specific position
+  const getLogoTransform = (positionKey) => {
+    const posConfig = currentConfig.logoPositions[positionKey];
+    if (!posConfig) return null;
+
+    const bounds = posConfig.bounds;
 
     // Start with the user's desired scale
-    const desiredScale = currentConfig.logoScale * (snap.logo.scale || 1);
+    const desiredScale = posConfig.scale * (snap.logo.scale || 1);
 
-    // Clamp scale within bounds - simple size limit
+    // Clamp scale within bounds
     const clampedScale = Math.max(
       bounds.minScale,
       Math.min(bounds.maxScale, desiredScale)
@@ -117,8 +210,8 @@ const Shirt = () => {
     const xOffset = (snap.logo.position?.x || 0) * offsetMultiplier;
     const yOffset = (snap.logo.position?.y || 0) * offsetMultiplier;
 
-    // Calculate position - simple clamping without adjusting for size
-    const basePos = currentConfig.logoPosition;
+    // Calculate position
+    const basePos = posConfig.position;
     const desiredX = basePos[0] + xOffset;
     const desiredY = basePos[1] + yOffset;
 
@@ -129,7 +222,7 @@ const Shirt = () => {
     const newPosition = [newX, newY, basePos[2]];
 
     // Rotation
-    const baseRotation = currentConfig.logoRotation || [0, 0, 0];
+    const baseRotation = posConfig.rotation || [0, 0, 0];
     const additionalRotation = ((snap.logo.rotation || 0) * Math.PI) / 180;
     const newRotation = [
       baseRotation[0],
@@ -144,7 +237,16 @@ const Shirt = () => {
     };
   };
 
-  const logoTransform = getLogoTransform();
+  // Get active logo positions based on state
+  const activePositions = snap.logoPosition || ["front"];
+  const logoTransforms = {};
+
+  activePositions.forEach((pos) => {
+    const transform = getLogoTransform(pos);
+    if (transform) {
+      logoTransforms[pos] = transform;
+    }
+  });
 
   return (
     <group
@@ -170,17 +272,20 @@ const Shirt = () => {
           />
         )}
 
-        {snap.isLogoTexture && logoTexture && (
-          <Decal
-            position={logoTransform.position}
-            rotation={logoTransform.rotation}
-            scale={logoTransform.scale}
-            map={logoTexture}
-            anisotropy={16}
-            depthTest={false}
-            depthWrite={true}
-          />
-        )}
+        {snap.isLogoTexture &&
+          logoTexture &&
+          Object.entries(logoTransforms).map(([key, transform]) => (
+            <Decal
+              key={key}
+              position={transform.position}
+              rotation={transform.rotation}
+              scale={transform.scale}
+              map={logoTexture}
+              anisotropy={16}
+              depthTest={false}
+              depthWrite={true}
+            />
+          ))}
       </mesh>
     </group>
   );
