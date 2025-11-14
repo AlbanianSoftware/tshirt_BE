@@ -1,1 +1,0 @@
-ALTER TABLE `community_posts` ADD `deleted_at` timestamp;

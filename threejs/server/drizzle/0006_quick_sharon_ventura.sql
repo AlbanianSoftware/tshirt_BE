@@ -1,1 +1,0 @@
-ALTER TABLE `designs` ADD `logo_data` mediumtext;

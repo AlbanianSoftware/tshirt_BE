@@ -1,0 +1,1 @@
+ALTER TABLE `designs` ADD `shirt_type` varchar(50) DEFAULT 'tshirt' NOT NULL;
