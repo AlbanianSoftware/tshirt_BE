@@ -1,4 +1,4 @@
-// db/schema.js
+// db/schema.js - UPDATED with likes, comments, and soft deletes
 import {
   mysqlTable,
   varchar,
@@ -7,6 +7,7 @@ import {
   boolean,
   mediumtext,
   json,
+  index,
 } from "drizzle-orm/mysql-core";
 
 // Users table
@@ -38,22 +39,71 @@ export const designs = mysqlTable("designs", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
-export const communityPosts = mysqlTable("community_posts", {
-  id: int("id").primaryKey().autoincrement(),
-  userId: int("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  designId: int("design_id")
-    .notNull()
-    .references(() => designs.id, { onDelete: "cascade" }),
-  title: varchar("title", { length: 255 }).notNull(),
-  description: mediumtext("description"),
-  views: int("views").default(0),
-  likes: int("likes").default(0),
-  deletedAt: timestamp("deleted_at"), // 🆕 Soft delete field (null = not deleted)
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
-});
+export const communityPosts = mysqlTable(
+  "community_posts",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    userId: int("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    designId: int("design_id")
+      .notNull()
+      .references(() => designs.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: mediumtext("description"),
+    views: int("views").default(0),
+    likesCount: int("likes_count").default(0), // 🆕 Cached like count
+    commentsCount: int("comments_count").default(0), // 🆕 Cached comment count
+    deletedAt: timestamp("deleted_at"), // 🆕 Soft delete
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    userIdIdx: index("user_id_idx").on(table.userId),
+    createdAtIdx: index("created_at_idx").on(table.createdAt),
+    deletedAtIdx: index("deleted_at_idx").on(table.deletedAt),
+  })
+);
+
+// 🆕 Likes table - tracks who liked what
+export const postLikes = mysqlTable(
+  "post_likes",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    userId: int("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    postId: int("post_id")
+      .notNull()
+      .references(() => communityPosts.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    userPostIdx: index("user_post_idx").on(table.userId, table.postId),
+  })
+);
+
+// 🆕 Comments table
+export const postComments = mysqlTable(
+  "post_comments",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    userId: int("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    postId: int("post_id")
+      .notNull()
+      .references(() => communityPosts.id, { onDelete: "cascade" }),
+    content: mediumtext("content").notNull(),
+    deletedAt: timestamp("deleted_at"), // 🆕 Soft delete for comments
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    postIdIdx: index("post_id_idx").on(table.postId),
+    deletedAtIdx: index("deleted_at_idx").on(table.deletedAt),
+  })
+);
 
 export const cartItems = mysqlTable("cart_items", {
   id: int("id").primaryKey().autoincrement(),
