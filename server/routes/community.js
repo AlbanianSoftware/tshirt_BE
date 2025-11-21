@@ -1,4 +1,4 @@
-// routes/community.js - COMPLETE FIX with /design endpoint
+// routes/community.js - UPDATED with Most Popular This Week
 import express from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import {
   postLikes,
   postComments,
 } from "../db/schema.js";
-import { eq, desc, like, or, and, sql, isNull } from "drizzle-orm";
+import { eq, desc, like, or, and, sql, isNull, gte } from "drizzle-orm";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "";
@@ -42,7 +42,7 @@ const requireAuth = (req, res, next) => {
 // GET all community posts with pagination & filtering
 router.get("/", async (req, res) => {
   try {
-    const { search, limit = 10, offset = 0, userId } = req.query;
+    const { search, limit = 10, offset = 0, userId, filter } = req.query;
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);
 
@@ -86,6 +86,13 @@ router.get("/", async (req, res) => {
 
     const conditions = [isNull(communityPosts.deletedAt)];
 
+    // 🆕 Most Popular This Week Filter
+    if (filter === "popular") {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      conditions.push(gte(communityPosts.createdAt, oneWeekAgo));
+    }
+
     if (search) {
       const searchTerm = `%${search}%`;
       conditions.push(
@@ -126,10 +133,15 @@ router.get("/", async (req, res) => {
       myDesignsCount = Number(count);
     }
 
+    // 🆕 Order by likes for popular, otherwise by date
     const posts = await query
       .limit(limitNum)
       .offset(offsetNum)
-      .orderBy(desc(communityPosts.createdAt));
+      .orderBy(
+        filter === "popular"
+          ? desc(communityPosts.likesCount)
+          : desc(communityPosts.createdAt)
+      );
 
     let userLikes = new Set();
     if (authenticatedUserId) {
@@ -249,7 +261,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 🆕 GET design data for a post (MISSING ENDPOINT - NOW ADDED)
+// GET design data for a post
 router.get("/:id/design", async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
