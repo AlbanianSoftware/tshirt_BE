@@ -1,13 +1,18 @@
 // db/schema.js - UPDATED with likes, comments, and soft deletes
 import {
   mysqlTable,
+  serial,
   varchar,
   int,
-  timestamp,
   boolean,
+  text,
   mediumtext,
   json,
+  timestamp,
   index,
+  mysqlEnum,
+  double,
+  decimal,
 } from "drizzle-orm/mysql-core";
 
 // Users table
@@ -117,4 +122,24 @@ export const cartItems = mysqlTable("cart_items", {
     .references(() => designs.id, { onDelete: "cascade" }),
   quantity: int("quantity").notNull().default(1),
   addedAt: timestamp("added_at").defaultNow(),
+});
+
+export const orders = mysqlTable("orders", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id").notNull(),
+  designId: int("design_id").notNull(),
+  status: mysqlEnum("status", [
+    "pending",
+    "processing",
+    "shipped",
+    "delivered",
+  ]).default("pending"),
+  customerName: varchar("customer_name", { length: 100 }).notNull(),
+  customerSurname: varchar("customer_surname", { length: 100 }).notNull(),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  shippingAddress: text("shipping_address").notNull(),
+  orderDate: timestamp("order_date").defaultNow().notNull(),
+  shippedDate: timestamp("shipped_date"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -4,6 +4,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import communityRoutes from "./routes/community.js";
 import adminRoutes from "./routes/admin.js";
+import orderRoutes from "./routes/orders.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,7 +27,7 @@ app.use(
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // ✅ Added PATCH
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -96,6 +97,8 @@ console.log(
 );
 
 app.use("/api/admin", adminRoutes);
+
+app.use("/api/orders", orderRoutes);
 // 404 handler - STAYS AT THE END
 app.use((req, res) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.url}`);

@@ -1,6 +1,6 @@
 import express from "express";
 import { db } from "../db/index.js";
-import { cartItems, designs } from "../db/schema.js";
+import { cartItems, designs, orders } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -9,7 +9,7 @@ const router = express.Router();
 // Get user's cart
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // FIXED
 
     // Get cart items with design details
     const userCart = await db
@@ -25,6 +25,7 @@ router.get("/", authenticateToken, async (req, res) => {
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
         thumbnail: designs.thumbnail,
+        shirtType: designs.shirtType,
       })
       .from(cartItems)
       .innerJoin(designs, eq(cartItems.designId, designs.id))
@@ -40,7 +41,7 @@ router.get("/", authenticateToken, async (req, res) => {
 // Add item to cart
 router.post("/add", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // FIXED
     const { designId } = req.body;
 
     if (!designId) {
@@ -97,7 +98,7 @@ router.post("/add", authenticateToken, async (req, res) => {
 // Remove item from cart
 router.delete("/:cartItemId", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // FIXED
     const cartItemId = parseInt(req.params.cartItemId);
 
     await db
@@ -114,7 +115,7 @@ router.delete("/:cartItemId", authenticateToken, async (req, res) => {
 // Update quantity
 router.put("/:cartItemId", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // FIXED
     const cartItemId = parseInt(req.params.cartItemId);
     const { quantity } = req.body;
 
@@ -134,27 +135,61 @@ router.put("/:cartItemId", authenticateToken, async (req, res) => {
   }
 });
 
-// Checkout (clear cart after "purchase")
+// Checkout - Create orders from cart items
 router.post("/checkout", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId; // FIXED
+    const { customerName, customerSurname, phoneNumber, shippingAddress } =
+      req.body;
 
-    // Get cart items before clearing
+    // Validate customer info
+    if (!customerName || !customerSurname || !phoneNumber || !shippingAddress) {
+      return res
+        .status(400)
+        .json({ error: "All customer information is required" });
+    }
+
+    // Get cart items with design details
     const userCart = await db
-      .select()
+      .select({
+        cartItemId: cartItems.id,
+        quantity: cartItems.quantity,
+        designId: designs.id,
+        designName: designs.name,
+        thumbnail: designs.thumbnail,
+      })
       .from(cartItems)
+      .innerJoin(designs, eq(cartItems.designId, designs.id))
       .where(eq(cartItems.userId, userId));
 
     if (userCart.length === 0) {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
+    // Create an order for each cart item
+    const price = 29.99; // Set your shirt price here
+    const orderPromises = userCart.map((item) =>
+      db.insert(orders).values({
+        userId,
+        designId: item.designId,
+        customerName,
+        customerSurname,
+        phoneNumber,
+        shippingAddress,
+        price: price * item.quantity,
+        status: "pending",
+        orderDate: new Date(),
+      })
+    );
+
+    await Promise.all(orderPromises);
+
     // Clear the cart
     await db.delete(cartItems).where(eq(cartItems.userId, userId));
 
     res.json({
-      message: "Payment successful! Your designs are on the way! 🎉",
-      itemsPurchased: userCart.length,
+      message: "Orders created successfully! 🎉",
+      ordersCreated: userCart.length,
     });
   } catch (error) {
     console.error("Error during checkout:", error);

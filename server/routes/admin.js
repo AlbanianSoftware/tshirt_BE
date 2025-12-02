@@ -1,14 +1,8 @@
 // server/routes/admin.js
 import express from "express";
 import { db } from "../db/index.js";
-import {
-  users,
-  designs,
-  communityPosts,
-  postLikes,
-  postComments,
-} from "../db/schema.js";
-import { eq, isNull, sql } from "drizzle-orm";
+import { users, designs, orders } from "../db/schema.js";
+import { eq, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -16,12 +10,18 @@ const router = express.Router();
 // Middleware to check if user is admin
 const isAdmin = async (req, res, next) => {
   try {
-    console.log("🔍 Checking admin status for user:", req.user.userId);
+    // Check different possible JWT payload structures
+    const userId = req.user.userId || req.user.id || req.user.sub;
 
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.user.userId));
+    console.log("🔍 Full req.user object:", req.user);
+    console.log("🔍 Extracted userId:", userId);
+
+    if (!userId) {
+      console.log("❌ No userId found in token");
+      return res.status(403).json({ message: "Invalid token structure" });
+    }
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
 
     console.log("👤 User found:", user);
     console.log("🔐 isAdmin status:", user?.isAdmin);
@@ -48,49 +48,107 @@ const isAdmin = async (req, res, next) => {
 router.use(authenticateToken);
 router.use(isAdmin);
 
-// Get all community posts with likes and comments
-router.get("/posts", async (req, res) => {
+// Get all orders with customer and design details
+router.get("/orders", async (req, res) => {
   try {
-    const allPosts = await db
+    const allOrders = await db
       .select({
-        id: communityPosts.id,
-        title: communityPosts.title,
-        description: communityPosts.description,
-        views: communityPosts.views,
-        likesCount: communityPosts.likesCount,
-        commentsCount: communityPosts.commentsCount,
-        createdAt: communityPosts.createdAt,
+        id: orders.id,
+        userId: orders.userId,
+        designId: orders.designId,
+        status: orders.status,
+        customerName: orders.customerName,
+        customerSurname: orders.customerSurname,
+        phoneNumber: orders.phoneNumber,
+        shippingAddress: orders.shippingAddress,
+        orderDate: orders.orderDate,
+        shippedDate: orders.shippedDate,
+        price: orders.price,
+        createdAt: orders.createdAt,
         username: users.username,
-        userId: users.id,
-        thumbnail: designs.thumbnail,
-        designId: communityPosts.designId,
+        userEmail: users.email,
+        designName: designs.name,
+        designThumbnail: designs.thumbnail,
+        designColor: designs.color,
+        shirtType: designs.shirtType,
       })
-      .from(communityPosts)
-      .leftJoin(users, eq(communityPosts.userId, users.id))
-      .leftJoin(designs, eq(communityPosts.designId, designs.id))
-      .where(isNull(communityPosts.deletedAt))
-      .orderBy(sql`${communityPosts.createdAt} DESC`);
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id))
+      .leftJoin(designs, eq(orders.designId, designs.id))
+      .orderBy(sql`${orders.orderDate} DESC`);
 
-    res.json(allPosts);
+    res.json(allOrders);
   } catch (error) {
-    console.error("Error fetching posts:", error);
+    console.error("Error fetching orders:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// Delete post (soft delete)
-router.delete("/posts/:id", async (req, res) => {
+// Get single order details
+router.get("/orders/:id", async (req, res) => {
   try {
-    const postId = parseInt(req.params.id);
+    const orderId = parseInt(req.params.id);
 
-    await db
-      .update(communityPosts)
-      .set({ deletedAt: new Date() })
-      .where(eq(communityPosts.id, postId));
+    const [order] = await db
+      .select({
+        id: orders.id,
+        userId: orders.userId,
+        designId: orders.designId,
+        status: orders.status,
+        customerName: orders.customerName,
+        customerSurname: orders.customerSurname,
+        phoneNumber: orders.phoneNumber,
+        shippingAddress: orders.shippingAddress,
+        orderDate: orders.orderDate,
+        shippedDate: orders.shippedDate,
+        price: orders.price,
+        createdAt: orders.createdAt,
+        username: users.username,
+        userEmail: users.email,
+        designName: designs.name,
+        designThumbnail: designs.thumbnail,
+        designColor: designs.color,
+        shirtType: designs.shirtType,
+      })
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id))
+      .leftJoin(designs, eq(orders.designId, designs.id))
+      .where(eq(orders.id, orderId));
 
-    res.json({ message: "Post deleted successfully" });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json(order);
   } catch (error) {
-    console.error("Error deleting post:", error);
+    console.error("Error fetching order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Update order status
+router.patch("/orders/:id/status", async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ["pending", "processing", "shipped", "delivered"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // Update shipped date if status is changed to 'shipped'
+    const updateData = { status };
+    if (status === "shipped") {
+      updateData.shippedDate = new Date();
+    }
+
+    await db.update(orders).set(updateData).where(eq(orders.id, orderId));
+
+    res.json({ message: "Order status updated successfully" });
+  } catch (error) {
+    console.error("Error updating order status:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
