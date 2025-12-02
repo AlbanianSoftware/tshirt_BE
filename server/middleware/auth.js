@@ -14,8 +14,9 @@ export const authenticateToken = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = { id: decoded.userId };
-    console.log("✅ Authenticated user:", req.user.id);
+    // FIX: Set req.user.userId (not req.user.id)
+    req.user = { userId: decoded.userId };
+    console.log("✅ Authenticated user:", req.user.userId);
     next();
   } catch (error) {
     console.error("❌ Auth error:", error.message);

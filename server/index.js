@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import communityRoutes from "./routes/community.js";
+import adminRoutes from "./routes/admin.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -94,6 +95,7 @@ console.log(
   "✅ Community routes mounted at /api/community (with rate limiting)"
 );
 
+app.use("/api/admin", adminRoutes);
 // 404 handler - STAYS AT THE END
 app.use((req, res) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.url}`);

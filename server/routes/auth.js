@@ -34,14 +34,25 @@ router.post("/register", async (req, res) => {
     });
 
     // Generate token
-    const token = jwt.sign({ userId: newUser.insertId, email }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      {
+        userId: newUser.insertId,
+        email,
+        isAdmin: false, // New users are not admins by default
+      },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.status(201).json({
       message: "User registered successfully",
       token,
-      user: { id: newUser.insertId, username, email },
+      user: {
+        id: newUser.insertId,
+        username,
+        email,
+        isAdmin: false,
+      },
     });
   } catch (error) {
     console.error("Register error:", error);
@@ -67,14 +78,21 @@ router.post("/login", async (req, res) => {
     }
 
     // Generate token
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, isAdmin: user.isAdmin }, // 👈 ADD isAdmin to token
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.json({
       message: "Login successful",
       token,
-      user: { id: user.id, username: user.username, email: user.email },
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        isAdmin: user.isAdmin, // 👈 RETURN isAdmin
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -101,7 +119,12 @@ router.get("/verify", async (req, res) => {
     }
 
     res.json({
-      user: { id: user.id, username: user.username, email: user.email },
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        isAdmin: user.isAdmin, // 👈 RETURN isAdmin
+      },
     });
   } catch (error) {
     res.status(401).json({ message: "Invalid token" });

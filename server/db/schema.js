@@ -11,11 +11,13 @@ import {
 } from "drizzle-orm/mysql-core";
 
 // Users table
+// Add this to your users table in db/schema.js
 export const users = mysqlTable("users", {
   id: int("id").primaryKey().autoincrement(),
   username: varchar("username", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
+  isAdmin: boolean("is_admin").default(false), // 👈 ADD THIS LINE
   createdAt: timestamp("created_at").defaultNow(),
 });
 
