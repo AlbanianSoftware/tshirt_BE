@@ -1,7 +1,7 @@
 // server/routes/admin.js
 import express from "express";
 import { db } from "../db/index.js";
-import { users, designs, orders } from "../db/schema.js";
+import { users, designs, orders, pricing } from "../db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -47,6 +47,10 @@ const isAdmin = async (req, res, next) => {
 // Apply auth middleware to all admin routes
 router.use(authenticateToken);
 router.use(isAdmin);
+
+// ============================================================================
+// ORDER ROUTES
+// ============================================================================
 
 // Get all orders with customer and design details
 router.get("/orders", async (req, res) => {
@@ -149,6 +153,90 @@ router.patch("/orders/:id/status", async (req, res) => {
     res.json({ message: "Order status updated successfully" });
   } catch (error) {
     console.error("Error updating order status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+// PRICING ROUTES
+// ============================================================================
+
+// Get all pricing items
+router.get("/pricing", async (req, res) => {
+  try {
+    const allPricing = await db
+      .select()
+      .from(pricing)
+      .orderBy(pricing.itemType);
+    res.json(allPricing);
+  } catch (error) {
+    console.error("Error fetching pricing:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Update pricing for a specific item
+router.patch("/pricing/:id", async (req, res) => {
+  try {
+    const pricingId = parseInt(req.params.id);
+    const { price, description, isActive } = req.body;
+
+    if (price !== undefined && price < 0) {
+      return res.status(400).json({ message: "Price cannot be negative" });
+    }
+
+    const updateData = {
+      updatedAt: new Date(),
+    };
+
+    if (price !== undefined) updateData.price = price.toString();
+    if (description !== undefined) updateData.description = description;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    await db.update(pricing).set(updateData).where(eq(pricing.id, pricingId));
+
+    res.json({ message: "Pricing updated successfully" });
+  } catch (error) {
+    console.error("Error updating pricing:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Add new pricing item
+router.post("/pricing", async (req, res) => {
+  try {
+    const { itemType, price, description } = req.body;
+
+    if (!itemType || price === undefined) {
+      return res.status(400).json({ message: "Item type and price required" });
+    }
+
+    await db.insert(pricing).values({
+      itemType,
+      price: price.toString(),
+      description,
+      isActive: true,
+    });
+
+    res.status(201).json({
+      message: "Pricing item created successfully",
+    });
+  } catch (error) {
+    console.error("Error creating pricing:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Delete pricing item
+router.delete("/pricing/:id", async (req, res) => {
+  try {
+    const pricingId = parseInt(req.params.id);
+
+    await db.delete(pricing).where(eq(pricing.id, pricingId));
+
+    res.json({ message: "Pricing item deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting pricing:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import communityRoutes from "./routes/community.js";
 import adminRoutes from "./routes/admin.js";
 import orderRoutes from "./routes/orders.js";
+import pricingRoutes from "./routes/pricing.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -89,7 +90,7 @@ if (cartRoutes) {
   app.use("/api/cart", cartRoutes);
   console.log("✅ Cart routes mounted at /api/cart");
 }
-
+app.use("/api/pricing", pricingRoutes);
 // Apply rate limiting only to community routes
 app.use("/api/community", publishLimiter, communityRoutes);
 console.log(

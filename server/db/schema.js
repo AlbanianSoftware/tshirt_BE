@@ -112,6 +112,16 @@ export const postComments = mysqlTable(
   })
 );
 
+export const pricing = mysqlTable("pricing", {
+  id: int("id").primaryKey().autoincrement(),
+  itemType: varchar("item_type", { length: 50 }).notNull().unique(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const cartItems = mysqlTable("cart_items", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id")
