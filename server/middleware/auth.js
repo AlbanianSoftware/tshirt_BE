@@ -1,3 +1,4 @@
+// middleware/auth.js - READS TOKEN FROM COOKIES
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET =
@@ -5,23 +6,42 @@ const JWT_SECRET =
 
 export const authenticateToken = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    // 🔥 Read token from cookie (httpOnly secure)
+    const token = req.cookies.token;
 
     if (!token) {
-      return res
-        .status(401)
-        .json({ error: "No token provided. Please log in." });
+      console.log("❌ No token in cookies");
+      return res.status(401).json({
+        error: "No token provided. Please log in.",
+        message: "Authentication required",
+      });
     }
 
+    // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
-    // FIX: Set req.user.userId (not req.user.id)
-    req.user = { userId: decoded.userId };
+
+    // Attach user info to request (support multiple formats for compatibility)
+    req.user = {
+      userId: decoded.userId,
+      id: decoded.userId, // Some routes use .id
+      sub: decoded.userId, // JWT standard
+    };
+
     console.log("✅ Authenticated user:", req.user.userId);
     next();
   } catch (error) {
-    console.error("❌ Auth error:", error.message);
-    return res
-      .status(401)
-      .json({ error: "Invalid token. Please log in again." });
+    console.error("❌ Auth token error:", error.message);
+
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        error: "Token expired. Please log in again.",
+        message: "Token expired, please login again",
+      });
+    }
+
+    return res.status(403).json({
+      error: "Invalid token. Please log in again.",
+      message: "Invalid token",
+    });
   }
 };

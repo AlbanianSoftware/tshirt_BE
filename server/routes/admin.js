@@ -1,4 +1,4 @@
-// server/routes/admin.js
+// server/routes/admin.js - FIXED with full URLs
 import express from "express";
 import { db } from "../db/index.js";
 import { users, designs, orders, pricing } from "../db/schema.js";
@@ -7,10 +7,23 @@ import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// 🔥 Helper to convert paths to full URLs
+const toFullUrl = (path, req) => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  if (path.startsWith("data:image")) return path;
+  // Convert ANY path starting with / to full URL
+  if (path.startsWith("/")) {
+    const baseUrl =
+      process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
+    return `${baseUrl}${path}`;
+  }
+  return path;
+};
+
 // Middleware to check if user is admin
 const isAdmin = async (req, res, next) => {
   try {
-    // Check different possible JWT payload structures
     const userId = req.user.userId || req.user.id || req.user.sub;
 
     console.log("🔍 Full req.user object:", req.user);
@@ -52,7 +65,7 @@ router.use(isAdmin);
 // ORDER ROUTES
 // ============================================================================
 
-// Get all orders with customer and design details
+// 🔥 FIXED: Get all orders with full URLs
 router.get("/orders", async (req, res) => {
   try {
     const allOrders = await db
@@ -75,20 +88,34 @@ router.get("/orders", async (req, res) => {
         designThumbnail: designs.thumbnail,
         designColor: designs.color,
         shirtType: designs.shirtType,
+        logoDecal: designs.logoDecal,
+        fullDecal: designs.fullDecal,
+        isLogoTexture: designs.isLogoTexture,
+        isFullTexture: designs.isFullTexture,
       })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
       .leftJoin(designs, eq(orders.designId, designs.id))
       .orderBy(sql`${orders.orderDate} DESC`);
 
-    res.json(allOrders);
+    // 🔥 Convert file paths to full URLs
+    const ordersWithUrls = allOrders.map((order) => ({
+      ...order,
+      designThumbnail: toFullUrl(order.designThumbnail, req),
+      logoDecal: toFullUrl(order.logoDecal, req),
+      fullDecal: toFullUrl(order.fullDecal, req),
+    }));
+
+    console.log(`✅ Fetched ${ordersWithUrls.length} orders for admin`);
+
+    res.json(ordersWithUrls);
   } catch (error) {
     console.error("Error fetching orders:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// Get single order details
+// 🔥 FIXED: Get single order with full URLs
 router.get("/orders/:id", async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -113,6 +140,10 @@ router.get("/orders/:id", async (req, res) => {
         designThumbnail: designs.thumbnail,
         designColor: designs.color,
         shirtType: designs.shirtType,
+        logoDecal: designs.logoDecal,
+        fullDecal: designs.fullDecal,
+        isLogoTexture: designs.isLogoTexture,
+        isFullTexture: designs.isFullTexture,
       })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
@@ -123,7 +154,15 @@ router.get("/orders/:id", async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    res.json(order);
+    // 🔥 Convert file paths to full URLs
+    const orderWithUrls = {
+      ...order,
+      designThumbnail: toFullUrl(order.designThumbnail, req),
+      logoDecal: toFullUrl(order.logoDecal, req),
+      fullDecal: toFullUrl(order.fullDecal, req),
+    };
+
+    res.json(orderWithUrls);
   } catch (error) {
     console.error("Error fetching order:", error);
     res.status(500).json({ message: "Server error" });
