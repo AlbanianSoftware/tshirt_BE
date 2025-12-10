@@ -26,6 +26,7 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// db/schema.js - Add these fields to the designs table
 export const designs = mysqlTable("designs", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id")
@@ -34,13 +35,21 @@ export const designs = mysqlTable("designs", {
   name: varchar("name", { length: 255 }).notNull(),
   color: varchar("color", { length: 7 }).notNull(),
   shirtType: varchar("shirt_type", { length: 50 }).notNull().default("tshirt"),
+
+  // FRONT LOGO
   logoDecal: mediumtext("logo_decal"),
-  fullDecal: mediumtext("full_decal"),
   isLogoTexture: boolean("is_logo_texture").default(false),
+  logoPosition: mediumtext("logo_position"),
+
+  // 🆕 BACK LOGO - ADD THESE
+  backLogoDecal: mediumtext("back_logo_decal"), // Image for back logo
+  hasBackLogo: boolean("has_back_logo").default(false), // Flag if back logo exists
+  backLogoPosition: mediumtext("back_logo_position"), // Position data for back
+
+  fullDecal: mediumtext("full_decal"),
   isFullTexture: boolean("is_full_texture").default(false),
   textData: mediumtext("text_data"),
   logoData: mediumtext("logo_data"),
-  logoPosition: mediumtext("logo_position"),
   thumbnail: mediumtext("thumbnail"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),

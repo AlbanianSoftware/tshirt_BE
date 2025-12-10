@@ -1,15 +1,43 @@
 import express from "express";
 import { db } from "../db/index.js";
-import { cartItems, designs, orders } from "../db/schema.js";
-import { eq, and } from "drizzle-orm";
+import {
+  cartItems,
+  designs,
+  orders,
+  pricing as pricingTable,
+} from "../db/schema.js";
+import { eq, and, inArray } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Get user's cart
+// 🔥 Helper: Calculate price with back logo support
+const calculateOrderPrice = (design, pricingData) => {
+  const shirtTypeKey = (design.shirtType || "tshirt").toLowerCase();
+  let price = pricingData[shirtTypeKey] || 20;
+
+  // Front logo
+  if (design.isLogoTexture && design.logoDecal) {
+    price += pricingData.logo || 5;
+  }
+
+  // 🔥 Back logo (separate charge)
+  if (design.hasBackLogo && design.backLogoDecal) {
+    price += pricingData.back_logo || pricingData.logo || 5;
+  }
+
+  // Full texture
+  if (design.isFullTexture && design.fullDecal) {
+    price += pricingData.full_texture || 8;
+  }
+
+  return price;
+};
+
+// 🔥 GET USER'S CART (with back logo data)
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId; // FIXED
+    const userId = req.user.userId;
 
     // Get cart items with design details
     const userCart = await db
@@ -21,6 +49,8 @@ router.get("/", authenticateToken, async (req, res) => {
         designName: designs.name,
         color: designs.color,
         logoDecal: designs.logoDecal,
+        backLogoDecal: designs.backLogoDecal, // 🔥 NEW
+        hasBackLogo: designs.hasBackLogo, // 🔥 NEW
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
@@ -38,10 +68,10 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-// Add item to cart
+// ADD ITEM TO CART
 router.post("/add", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId; // FIXED
+    const userId = req.user.userId;
     const { designId } = req.body;
 
     if (!designId) {
@@ -95,10 +125,10 @@ router.post("/add", authenticateToken, async (req, res) => {
   }
 });
 
-// Remove item from cart
+// REMOVE ITEM FROM CART
 router.delete("/:cartItemId", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId; // FIXED
+    const userId = req.user.userId;
     const cartItemId = parseInt(req.params.cartItemId);
 
     await db
@@ -112,10 +142,10 @@ router.delete("/:cartItemId", authenticateToken, async (req, res) => {
   }
 });
 
-// Update quantity
+// UPDATE QUANTITY
 router.put("/:cartItemId", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId; // FIXED
+    const userId = req.user.userId;
     const cartItemId = parseInt(req.params.cartItemId);
     const { quantity } = req.body;
 
@@ -135,10 +165,10 @@ router.put("/:cartItemId", authenticateToken, async (req, res) => {
   }
 });
 
-// Checkout - Create orders from cart items
+// 🔥 CHECKOUT - Create orders from cart items (with back logo pricing)
 router.post("/checkout", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId; // FIXED
+    const userId = req.user.userId;
     const { customerName, customerSurname, phoneNumber, shippingAddress } =
       req.body;
 
@@ -149,51 +179,135 @@ router.post("/checkout", authenticateToken, async (req, res) => {
         .json({ error: "All customer information is required" });
     }
 
-    // Get cart items with design details
-    const userCart = await db
-      .select({
-        cartItemId: cartItems.id,
-        quantity: cartItems.quantity,
-        designId: designs.id,
-        designName: designs.name,
-        thumbnail: designs.thumbnail,
-      })
+    // 1. Get user's cart items
+    const userCartItems = await db
+      .select()
       .from(cartItems)
-      .innerJoin(designs, eq(cartItems.designId, designs.id))
       .where(eq(cartItems.userId, userId));
 
-    if (userCart.length === 0) {
+    if (userCartItems.length === 0) {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
-    // Create an order for each cart item
-    const price = 29.99; // Set your shirt price here
-    const orderPromises = userCart.map((item) =>
-      db.insert(orders).values({
+    // 2. Get all design details (including back logo data)
+    const designIds = userCartItems.map((item) => item.designId);
+    const designsData = await db
+      .select()
+      .from(designs)
+      .where(inArray(designs.id, designIds));
+
+    // 3. Get pricing data
+    const pricingData = await db.select().from(pricingTable);
+    const pricingMap = {};
+    pricingData.forEach((item) => {
+      pricingMap[item.itemType] = parseFloat(item.price);
+    });
+
+    // 4. Create orders with proper pricing (including back logo)
+    const createdOrders = [];
+
+    for (const cartItem of userCartItems) {
+      const design = designsData.find((d) => d.id === cartItem.designId);
+      if (!design) continue;
+
+      // 🔥 Calculate price INCLUDING back logo
+      const unitPrice = calculateOrderPrice(design, pricingMap);
+      const totalPrice = unitPrice * cartItem.quantity;
+
+      // Create order
+      const result = await db.insert(orders).values({
         userId,
-        designId: item.designId,
+        designId: design.id,
+        status: "pending",
         customerName,
         customerSurname,
         phoneNumber,
         shippingAddress,
-        price: price * item.quantity,
-        status: "pending",
+        price: totalPrice.toFixed(2),
         orderDate: new Date(),
-      })
-    );
+      });
 
-    await Promise.all(orderPromises);
+      const orderId = Array.isArray(result)
+        ? result[0]?.insertId
+        : result.insertId;
 
-    // Clear the cart
+      createdOrders.push({
+        id: orderId,
+        designId: design.id,
+        price: totalPrice.toFixed(2),
+        quantity: cartItem.quantity,
+      });
+
+      console.log(
+        `✅ Order ${orderId} created - ${totalPrice.toFixed(2)} (qty: ${
+          cartItem.quantity
+        })`
+      );
+
+      // Log if back logo is present
+      if (design.hasBackLogo && design.backLogoDecal) {
+        console.log(
+          `   📍 Includes back logo - charged separately (+${
+            pricingMap.back_logo || pricingMap.logo || 5
+          })`
+        );
+      }
+    }
+
+    // 5. Clear the cart
     await db.delete(cartItems).where(eq(cartItems.userId, userId));
 
     res.json({
       message: "Orders created successfully! 🎉",
-      ordersCreated: userCart.length,
+      orders: createdOrders,
+      ordersCreated: createdOrders.length,
     });
   } catch (error) {
     console.error("Error during checkout:", error);
     res.status(500).json({ error: "Failed to process checkout" });
+  }
+});
+
+// 🔥 GET USER'S ORDERS (with back logo data)
+router.get("/orders", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Get orders with design data via JOIN
+    const userOrders = await db
+      .select({
+        // Order fields
+        id: orders.id,
+        status: orders.status,
+        customerName: orders.customerName,
+        customerSurname: orders.customerSurname,
+        phoneNumber: orders.phoneNumber,
+        shippingAddress: orders.shippingAddress,
+        price: orders.price,
+        orderDate: orders.orderDate,
+        shippedDate: orders.shippedDate,
+
+        // Design fields
+        designName: designs.name,
+        designThumbnail: designs.thumbnail,
+        shirtType: designs.shirtType,
+        color: designs.color,
+        logoDecal: designs.logoDecal,
+        backLogoDecal: designs.backLogoDecal, // 🔥 NEW
+        hasBackLogo: designs.hasBackLogo, // 🔥 NEW
+        fullDecal: designs.fullDecal,
+        isLogoTexture: designs.isLogoTexture,
+        isFullTexture: designs.isFullTexture,
+      })
+      .from(orders)
+      .innerJoin(designs, eq(orders.designId, designs.id))
+      .where(eq(orders.userId, userId))
+      .orderBy(orders.orderDate);
+
+    res.json(userOrders);
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ error: "Failed to fetch orders" });
   }
 });
 

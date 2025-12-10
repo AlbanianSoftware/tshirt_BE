@@ -89,7 +89,7 @@ router.post("/", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔥 FIXED: Get user's orders with full URLs
+// 🔥 UPDATED: Get user's orders with back logo support
 router.get("/my-orders", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId || req.user.id;
@@ -108,6 +108,8 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
         designName: designs.name,
         designThumbnail: designs.thumbnail,
         logoDecal: designs.logoDecal,
+        backLogoDecal: designs.backLogoDecal, // 🆕 Back logo
+        hasBackLogo: designs.hasBackLogo, // 🆕 Back logo flag
         fullDecal: designs.fullDecal,
         shirtType: designs.shirtType,
       })
@@ -116,11 +118,12 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
       .where(eq(orders.userId, userId))
       .orderBy(desc(orders.orderDate));
 
-    // 🔥 Convert file paths to full URLs
+    // 🔥 Convert file paths to full URLs including back logo
     const ordersWithUrls = userOrders.map((order) => ({
       ...order,
       designThumbnail: toFullUrl(order.designThumbnail, req),
       logoDecal: toFullUrl(order.logoDecal, req),
+      backLogoDecal: toFullUrl(order.backLogoDecal, req), // 🆕
       fullDecal: toFullUrl(order.fullDecal, req),
     }));
 
@@ -135,7 +138,7 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔥 FIXED: Download logo (handles both /uploads and /defaults)
+// 🔥 Download front logo
 router.get("/:id/download-logo", authenticateToken, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -158,22 +161,20 @@ router.get("/:id/download-logo", authenticateToken, async (req, res) => {
     // Extract path from full URL if needed
     if (filePath.startsWith("http")) {
       const url = new URL(filePath);
-      filePath = url.pathname; // Gets "/defaults/albania.png" or "/uploads/xxx.png"
+      filePath = url.pathname;
     }
 
     // 🔥 FIX: Remove leading slash and join with public folder
-    // "/defaults/albania.png" → "defaults/albania.png"
     const relativePath = filePath.startsWith("/")
       ? filePath.substring(1)
       : filePath;
 
-    // Build: server/routes/../public/defaults/albania.png
     const fullPath = path.join(__dirname, "../public", relativePath);
 
     console.log("🔍 Original path:", order.logoDecal);
     console.log("📂 Looking for file at:", fullPath);
 
-    const filename = path.basename(fullPath);
+    const filename = `front-${path.basename(fullPath)}`;
     res.download(fullPath, filename, (err) => {
       if (err) {
         console.error("❌ Download error:", err);
@@ -192,7 +193,62 @@ router.get("/:id/download-logo", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔥 FIXED: Download texture (handles both /uploads and /defaults)
+// 🆕 NEW: Download back logo
+router.get("/:id/download-back-logo", authenticateToken, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+
+    const [order] = await db
+      .select({
+        backLogoDecal: designs.backLogoDecal,
+        designName: designs.name,
+      })
+      .from(orders)
+      .leftJoin(designs, eq(orders.designId, designs.id))
+      .where(eq(orders.id, orderId));
+
+    if (!order || !order.backLogoDecal) {
+      return res.status(404).json({ message: "Back logo not found" });
+    }
+
+    let filePath = order.backLogoDecal;
+
+    // Extract path from full URL if needed
+    if (filePath.startsWith("http")) {
+      const url = new URL(filePath);
+      filePath = url.pathname;
+    }
+
+    // 🔥 FIX: Remove leading slash and join with public folder
+    const relativePath = filePath.startsWith("/")
+      ? filePath.substring(1)
+      : filePath;
+
+    const fullPath = path.join(__dirname, "../public", relativePath);
+
+    console.log("🔍 Back logo path:", order.backLogoDecal);
+    console.log("📂 Looking for file at:", fullPath);
+
+    const filename = `back-${path.basename(fullPath)}`;
+    res.download(fullPath, filename, (err) => {
+      if (err) {
+        console.error("❌ Download error:", err);
+        if (!res.headersSent) {
+          res.status(404).json({ message: "File not found" });
+        }
+      } else {
+        console.log("✅ Downloaded back logo:", filename);
+      }
+    });
+  } catch (error) {
+    console.error("Error downloading back logo:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+});
+
+// 🔥 Download texture
 router.get("/:id/download-texture", authenticateToken, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -223,7 +279,6 @@ router.get("/:id/download-texture", authenticateToken, async (req, res) => {
       ? filePath.substring(1)
       : filePath;
 
-    // Build: server/routes/../public/defaults/texture.png
     const fullPath = path.join(__dirname, "../public", relativePath);
 
     console.log("🔍 Original path:", order.fullDecal);

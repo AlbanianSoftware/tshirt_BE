@@ -1,4 +1,4 @@
-// routes/designs.js - FIXED TO USE COOKIE AUTH
+// routes/designs.js - UPDATED WITH BACK LOGO SUPPORT
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -6,11 +6,11 @@ import sharp from "sharp";
 import { db } from "../db/index.js";
 import { designs } from "../db/schema.js";
 import { eq, and, desc, like, sql } from "drizzle-orm";
-import { authenticateToken } from "../middleware/auth.js"; // 🔥 USE COOKIE AUTH MIDDLEWARE
+import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// 🔥 FIXED: Save and compress images - NOW HANDLES FULL URLs!
+// Save and compress images - handles full URLs and default assets
 const saveAndCompressImage = async (base64String, type, userId, designId) => {
   if (!base64String) return null;
 
@@ -19,11 +19,11 @@ const saveAndCompressImage = async (base64String, type, userId, designId) => {
     let isDefault = false;
     let filePath = base64String;
 
-    // 🔥 NEW: Extract path from full URL if needed
+    // Extract path from full URL if needed
     if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
       try {
         const url = new URL(filePath);
-        filePath = url.pathname; // Extract "/defaults/albania.png" from full URL
+        filePath = url.pathname;
         console.log(`🔗 Extracted path from URL: ${filePath}`);
       } catch (error) {
         console.error("❌ Invalid URL:", filePath);
@@ -38,9 +38,8 @@ const saveAndCompressImage = async (base64String, type, userId, designId) => {
       buffer = Buffer.from(matches[2], "base64");
       console.log(`📸 Processing base64 image for ${type}`);
     }
-    // Handle default asset paths (e.g., "/defaults/albania.png")
+    // Handle default asset paths
     else if (filePath.startsWith("/defaults/")) {
-      // 🔥 FIX: Just return the path for default assets - don't copy them!
       console.log(`✅ Using default asset: ${filePath}`);
       return filePath;
     }
@@ -56,7 +55,7 @@ const saveAndCompressImage = async (base64String, type, userId, designId) => {
         return null;
       }
     }
-    // Already a saved path - return as is
+    // Already a saved path
     else if (filePath.startsWith("/uploads")) {
       console.log(`✅ Already uploaded: ${filePath}`);
       return filePath;
@@ -65,13 +64,12 @@ const saveAndCompressImage = async (base64String, type, userId, designId) => {
       return null;
     }
 
-    // If we got here and buffer is null, something went wrong
     if (!buffer) {
       console.error(`❌ No buffer created for ${type}`);
       return null;
     }
 
-    // Determine folder and compression settings based on type
+    // Determine folder and compression settings
     let folder, maxSize, quality, format;
 
     if (type === "thumb") {
@@ -79,7 +77,7 @@ const saveAndCompressImage = async (base64String, type, userId, designId) => {
       maxSize = 400;
       quality = 80;
       format = "jpeg";
-    } else if (type === "logo") {
+    } else if (type === "logo" || type === "backLogo") {
       folder = isDefault ? "defaults" : "logos";
       maxSize = 1024;
       quality = 90;
@@ -93,23 +91,23 @@ const saveAndCompressImage = async (base64String, type, userId, designId) => {
       return null;
     }
 
-    // Create directory if doesn't exist
+    // Create directory
     const uploadDir = path.join(process.cwd(), "public/uploads", folder);
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
       console.log(`📁 Created directory: /uploads/${folder}`);
     }
 
-    // Generate proper filename
+    // Generate filename
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000);
     const filename = `${userId}_${timestamp}_${type}_${random}.${format}`;
     const filepath = path.join(uploadDir, filename);
 
-    // Compress and save using Sharp
+    // Compress and save
     let sharpInstance = sharp(buffer);
-
     const metadata = await sharpInstance.metadata();
+
     if (metadata.width > maxSize || metadata.height > maxSize) {
       sharpInstance = sharpInstance.resize(maxSize, maxSize, {
         fit: "inside",
@@ -136,7 +134,7 @@ const saveAndCompressImage = async (base64String, type, userId, designId) => {
   }
 };
 
-// Helper function to delete file
+// Delete file helper
 const deleteFile = (filePath) => {
   if (!filePath || !filePath.startsWith("/uploads/")) return;
 
@@ -151,7 +149,7 @@ const deleteFile = (filePath) => {
   }
 };
 
-// Helper to convert paths to full URLs
+// Convert paths to full URLs
 const toFullUrl = (path, req) => {
   if (!path) return null;
   if (path.startsWith("http")) return path;
@@ -164,7 +162,7 @@ const toFullUrl = (path, req) => {
   return path;
 };
 
-// Save a new design
+// 🔥 SAVE NEW DESIGN (with back logo support)
 router.post("/", authenticateToken, async (req, res) => {
   try {
     console.log("💾 Saving design for user:", req.user.userId);
@@ -173,22 +171,16 @@ router.post("/", authenticateToken, async (req, res) => {
       color,
       shirtType,
       logoDecal,
+      backLogoDecal, // 🔥 NEW
       fullDecal,
       isLogoTexture,
       isFullTexture,
       textData,
       logo,
       logoPosition,
+      backLogoPosition, // 🔥 NEW
       thumbnail,
     } = req.body;
-
-    console.log("📦 Received data:", {
-      name,
-      logoDecal: logoDecal?.substring(0, 100),
-      fullDecal: fullDecal?.substring(0, 100),
-      isLogoTexture,
-      isFullTexture,
-    });
 
     if (!name || !color) {
       return res.status(400).json({ error: "Name and color are required" });
@@ -201,14 +193,19 @@ router.post("/", authenticateToken, async (req, res) => {
       color,
       shirtType: shirtType || "tshirt",
       logoDecal: null,
+      backLogoDecal: null, // 🔥 NEW
       fullDecal: null,
       isLogoTexture: isLogoTexture || false,
       isFullTexture: isFullTexture || false,
+      hasBackLogo: !!backLogoDecal, // 🔥 NEW
       textData: textData ? JSON.stringify(textData) : null,
       logoData: logo ? JSON.stringify(logo) : null,
       logoPosition: logoPosition
         ? JSON.stringify(logoPosition)
         : JSON.stringify(["front"]),
+      backLogoPosition: backLogoPosition
+        ? JSON.stringify(backLogoPosition)
+        : null, // 🔥 NEW
       thumbnail: null,
     });
 
@@ -222,13 +219,19 @@ router.post("/", authenticateToken, async (req, res) => {
 
     console.log("✅ Design inserted with ID:", designId);
 
-    // Save and compress files - NOW HANDLES FULL URLs!
+    // Save and compress files
     const logoPath = await saveAndCompressImage(
       logoDecal,
       "logo",
       req.user.userId,
       designId
     );
+    const backLogoPath = await saveAndCompressImage(
+      backLogoDecal,
+      "backLogo",
+      req.user.userId,
+      designId
+    ); // 🔥 NEW
     const fullPath = await saveAndCompressImage(
       fullDecal,
       "texture",
@@ -242,13 +245,19 @@ router.post("/", authenticateToken, async (req, res) => {
       designId
     );
 
-    console.log("📁 Files processed:", { logoPath, fullPath, thumbPath });
+    console.log("📁 Files processed:", {
+      logoPath,
+      backLogoPath,
+      fullPath,
+      thumbPath,
+    });
 
     // Update with file paths
     await db
       .update(designs)
       .set({
         logoDecal: logoPath,
+        backLogoDecal: backLogoPath, // 🔥 NEW
         fullDecal: fullPath,
         thumbnail: thumbPath,
       })
@@ -266,7 +275,7 @@ router.post("/", authenticateToken, async (req, res) => {
   }
 });
 
-// Get all designs
+// 🔥 GET ALL DESIGNS
 router.get("/", authenticateToken, async (req, res) => {
   try {
     console.log("📥 Fetching designs for user:", req.user.userId);
@@ -299,8 +308,12 @@ router.get("/", authenticateToken, async (req, res) => {
       logoPosition: design.logoPosition
         ? JSON.parse(design.logoPosition)
         : ["front"],
+      backLogoPosition: design.backLogoPosition
+        ? JSON.parse(design.backLogoPosition)
+        : null, // 🔥 NEW
       thumbnail: toFullUrl(design.thumbnail, req),
       logoDecal: toFullUrl(design.logoDecal, req),
+      backLogoDecal: toFullUrl(design.backLogoDecal, req), // 🔥 NEW
       fullDecal: toFullUrl(design.fullDecal, req),
     }));
 
@@ -320,7 +333,7 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
-// Get specific design
+// 🔥 GET SPECIFIC DESIGN
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const designId = parseInt(req.params.id);
@@ -342,8 +355,12 @@ router.get("/:id", authenticateToken, async (req, res) => {
       logoPosition: design.logoPosition
         ? JSON.parse(design.logoPosition)
         : ["front"],
+      backLogoPosition: design.backLogoPosition
+        ? JSON.parse(design.backLogoPosition)
+        : null, // 🔥 NEW
       thumbnail: toFullUrl(design.thumbnail, req),
       logoDecal: toFullUrl(design.logoDecal, req),
+      backLogoDecal: toFullUrl(design.backLogoDecal, req), // 🔥 NEW
       fullDecal: toFullUrl(design.fullDecal, req),
     });
   } catch (error) {
@@ -352,7 +369,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Update design
+// 🔥 UPDATE DESIGN
 router.put("/:id", authenticateToken, async (req, res) => {
   try {
     const designId = parseInt(req.params.id);
@@ -361,12 +378,14 @@ router.put("/:id", authenticateToken, async (req, res) => {
       color,
       shirtType,
       logoDecal,
+      backLogoDecal, // 🔥 NEW
       fullDecal,
       isLogoTexture,
       isFullTexture,
       textData,
       logo,
       logoPosition,
+      backLogoPosition, // 🔥 NEW
       thumbnail,
     } = req.body;
 
@@ -382,6 +401,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
     }
 
     let newLogoPath = existing.logoDecal;
+    let newBackLogoPath = existing.backLogoDecal; // 🔥 NEW
     let newFullPath = existing.fullDecal;
     let newThumbPath = existing.thumbnail;
 
@@ -391,6 +411,17 @@ router.put("/:id", authenticateToken, async (req, res) => {
       newLogoPath = await saveAndCompressImage(
         logoDecal,
         "logo",
+        req.user.userId,
+        designId
+      );
+    }
+
+    // 🔥 NEW: Handle back logo
+    if (backLogoDecal) {
+      deleteFile(existing.backLogoDecal);
+      newBackLogoPath = await saveAndCompressImage(
+        backLogoDecal,
+        "backLogo",
         req.user.userId,
         designId
       );
@@ -423,6 +454,8 @@ router.put("/:id", authenticateToken, async (req, res) => {
         color: color || existing.color,
         shirtType: shirtType || existing.shirtType,
         logoDecal: newLogoPath,
+        backLogoDecal: newBackLogoPath, // 🔥 NEW
+        hasBackLogo: !!newBackLogoPath, // 🔥 NEW
         fullDecal: newFullPath,
         isLogoTexture:
           isLogoTexture !== undefined ? isLogoTexture : existing.isLogoTexture,
@@ -433,6 +466,9 @@ router.put("/:id", authenticateToken, async (req, res) => {
         logoPosition: logoPosition
           ? JSON.stringify(logoPosition)
           : existing.logoPosition,
+        backLogoPosition: backLogoPosition
+          ? JSON.stringify(backLogoPosition)
+          : existing.backLogoPosition, // 🔥 NEW
         thumbnail: newThumbPath,
       })
       .where(eq(designs.id, designId));
@@ -444,7 +480,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Delete design
+// 🔥 DELETE DESIGN
 router.delete("/:id", authenticateToken, async (req, res) => {
   try {
     const designId = parseInt(req.params.id);
@@ -460,6 +496,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
     }
 
     deleteFile(existing.logoDecal);
+    deleteFile(existing.backLogoDecal); // 🔥 NEW
     deleteFile(existing.fullDecal);
     deleteFile(existing.thumbnail);
 

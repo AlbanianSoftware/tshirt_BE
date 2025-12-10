@@ -1,4 +1,4 @@
-// server/routes/admin.js - FIXED with full URLs
+// server/routes/admin.js - UPDATED with back logo support
 import express from "express";
 import { db } from "../db/index.js";
 import { users, designs, orders, pricing } from "../db/schema.js";
@@ -65,7 +65,7 @@ router.use(isAdmin);
 // ORDER ROUTES
 // ============================================================================
 
-// 🔥 FIXED: Get all orders with full URLs
+// 🔥 UPDATED: Get all orders with back logo support
 router.get("/orders", async (req, res) => {
   try {
     const allOrders = await db
@@ -89,6 +89,8 @@ router.get("/orders", async (req, res) => {
         designColor: designs.color,
         shirtType: designs.shirtType,
         logoDecal: designs.logoDecal,
+        backLogoDecal: designs.backLogoDecal, // 🆕 Back logo
+        hasBackLogo: designs.hasBackLogo, // 🆕 Back logo flag
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
@@ -98,11 +100,12 @@ router.get("/orders", async (req, res) => {
       .leftJoin(designs, eq(orders.designId, designs.id))
       .orderBy(sql`${orders.orderDate} DESC`);
 
-    // 🔥 Convert file paths to full URLs
+    // 🔥 Convert file paths to full URLs including back logo
     const ordersWithUrls = allOrders.map((order) => ({
       ...order,
       designThumbnail: toFullUrl(order.designThumbnail, req),
       logoDecal: toFullUrl(order.logoDecal, req),
+      backLogoDecal: toFullUrl(order.backLogoDecal, req), // 🆕
       fullDecal: toFullUrl(order.fullDecal, req),
     }));
 
@@ -115,7 +118,7 @@ router.get("/orders", async (req, res) => {
   }
 });
 
-// 🔥 FIXED: Get single order with full URLs
+// 🔥 UPDATED: Get single order with back logo support
 router.get("/orders/:id", async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -141,6 +144,8 @@ router.get("/orders/:id", async (req, res) => {
         designColor: designs.color,
         shirtType: designs.shirtType,
         logoDecal: designs.logoDecal,
+        backLogoDecal: designs.backLogoDecal, // 🆕 Back logo
+        hasBackLogo: designs.hasBackLogo, // 🆕 Back logo flag
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
@@ -154,11 +159,12 @@ router.get("/orders/:id", async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // 🔥 Convert file paths to full URLs
+    // 🔥 Convert file paths to full URLs including back logo
     const orderWithUrls = {
       ...order,
       designThumbnail: toFullUrl(order.designThumbnail, req),
       logoDecal: toFullUrl(order.logoDecal, req),
+      backLogoDecal: toFullUrl(order.backLogoDecal, req), // 🆕
       fullDecal: toFullUrl(order.fullDecal, req),
     };
 
