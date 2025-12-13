@@ -11,6 +11,20 @@ import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// 🔥 Helper to convert paths to full URLs (SAME AS orders.js)
+const toFullUrl = (path, req) => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  if (path.startsWith("data:image")) return path;
+  // Convert ANY path starting with / to full URL
+  if (path.startsWith("/")) {
+    const baseUrl =
+      process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
+    return `${baseUrl}${path}`;
+  }
+  return path;
+};
+
 // 🔥 Helper: Calculate price with back logo support
 const calculateOrderPrice = (design, pricingData) => {
   const shirtTypeKey = (design.shirtType || "tshirt").toLowerCase();
@@ -34,7 +48,7 @@ const calculateOrderPrice = (design, pricingData) => {
   return price;
 };
 
-// 🔥 GET USER'S CART (with back logo data)
+// 🔥 GET USER'S CART (with back logo data + FIXED URLs)
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -49,8 +63,8 @@ router.get("/", authenticateToken, async (req, res) => {
         designName: designs.name,
         color: designs.color,
         logoDecal: designs.logoDecal,
-        backLogoDecal: designs.backLogoDecal, // 🔥 NEW
-        hasBackLogo: designs.hasBackLogo, // 🔥 NEW
+        backLogoDecal: designs.backLogoDecal,
+        hasBackLogo: designs.hasBackLogo,
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
@@ -61,7 +75,20 @@ router.get("/", authenticateToken, async (req, res) => {
       .innerJoin(designs, eq(cartItems.designId, designs.id))
       .where(eq(cartItems.userId, userId));
 
-    res.json(userCart);
+    // 🔥 FIX: Convert file paths to full URLs
+    const cartWithUrls = userCart.map((item) => ({
+      ...item,
+      thumbnail: toFullUrl(item.thumbnail, req),
+      logoDecal: toFullUrl(item.logoDecal, req),
+      backLogoDecal: toFullUrl(item.backLogoDecal, req),
+      fullDecal: toFullUrl(item.fullDecal, req),
+    }));
+
+    console.log(
+      `✅ Fetched ${cartWithUrls.length} cart items for user ${userId}`
+    );
+
+    res.json(cartWithUrls);
   } catch (error) {
     console.error("Error fetching cart:", error);
     res.status(500).json({ error: "Failed to fetch cart" });
@@ -293,8 +320,8 @@ router.get("/orders", authenticateToken, async (req, res) => {
         shirtType: designs.shirtType,
         color: designs.color,
         logoDecal: designs.logoDecal,
-        backLogoDecal: designs.backLogoDecal, // 🔥 NEW
-        hasBackLogo: designs.hasBackLogo, // 🔥 NEW
+        backLogoDecal: designs.backLogoDecal,
+        hasBackLogo: designs.hasBackLogo,
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
