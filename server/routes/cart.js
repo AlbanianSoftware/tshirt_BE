@@ -1,10 +1,15 @@
 import express from "express";
 import { db } from "../db/index.js";
 import {
+  sendOrderConfirmation,
+  sendAdminNotification,
+} from "../utils/emailService.js";
+import {
   cartItems,
   designs,
   orders,
   pricing as pricingTable,
+  users,
 } from "../db/schema.js";
 import { eq, and, inArray } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
@@ -193,6 +198,7 @@ router.put("/:cartItemId", authenticateToken, async (req, res) => {
 });
 
 // 🔥 CHECKOUT - Create orders from cart items (with back logo pricing)
+// 🔥 CHECKOUT - Create orders from cart items (with back logo pricing)
 router.post("/checkout", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -284,6 +290,57 @@ router.post("/checkout", authenticateToken, async (req, res) => {
     // 5. Clear the cart
     await db.delete(cartItems).where(eq(cartItems.userId, userId));
 
+    // 6. Get user's email from database
+    const [user] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    // 7. Send confirmation email (non-blocking)
+    if (user?.email) {
+      const orderDetails = {
+        items: createdOrders.map((order) => {
+          const design = designsData.find((d) => d.id === order.designId);
+          return {
+            designName: design.name,
+            shirtType: design.shirtType,
+            quantity: userCartItems.find((c) => c.designId === order.designId)
+              .quantity,
+            price: order.price,
+            isLogoTexture: design.isLogoTexture,
+            logoDecal: design.logoDecal,
+            hasBackLogo: design.hasBackLogo,
+            backLogoDecal: design.backLogoDecal,
+            isFullTexture: design.isFullTexture,
+            fullDecal: design.fullDecal,
+          };
+        }),
+        total: createdOrders
+          .reduce((sum, o) => sum + parseFloat(o.price), 0)
+          .toFixed(2),
+        orderDate: new Date(),
+        shippingAddress,
+      };
+
+      // Send emails (don't await - let them run in background)
+      sendOrderConfirmation({
+        customerEmail: user.email,
+        customerName,
+        orderDetails,
+      });
+
+      // Optional: Send yourself a notification
+      sendAdminNotification({
+        customerName: `${customerName} ${customerSurname}`,
+        customerEmail: user.email,
+        phoneNumber,
+        items: orderDetails.items,
+        total: orderDetails.total,
+      });
+    }
+
+    // 8. Send response (ONLY ONE res.json() call)
     res.json({
       message: "Orders created successfully! 🎉",
       orders: createdOrders,
