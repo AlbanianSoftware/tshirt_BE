@@ -8,6 +8,7 @@ import communityRoutes from "./routes/community.js";
 import adminRoutes from "./routes/admin.js";
 import orderRoutes from "./routes/orders.js";
 import pricingRoutes from "./routes/pricing.js";
+import colorsRoutes from "./routes/colors.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -107,7 +108,7 @@ console.log(
 );
 app.use("/api/admin", adminRoutes);
 app.use("/api/orders", orderRoutes);
-
+app.use("/api/colors", colorsRoutes);
 // 404 handler
 app.use((req, res) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.url}`);

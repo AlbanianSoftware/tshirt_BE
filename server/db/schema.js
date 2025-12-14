@@ -55,6 +55,16 @@ export const designs = mysqlTable("designs", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
+export const colors = mysqlTable("colors", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 50 }).notNull(), // e.g., "Black", "Navy Blue"
+  hexCode: varchar("hex_code", { length: 7 }).notNull(), // e.g., "#000000"
+  isActive: boolean("is_active").default(true), // In stock or not
+  sortOrder: int("sort_order").default(0), // Display order
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
 export const communityPosts = mysqlTable(
   "community_posts",
   {

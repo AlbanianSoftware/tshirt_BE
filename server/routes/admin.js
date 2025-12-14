@@ -1,18 +1,21 @@
-// server/routes/admin.js - UPDATED with back logo support
+// server/routes/admin.js - UPDATED with back logo and colors support
 import express from "express";
 import { db } from "../db/index.js";
-import { users, designs, orders, pricing } from "../db/schema.js";
+import { users, designs, orders, pricing, colors } from "../db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// 🔥 Helper to convert paths to full URLs
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+// Convert paths to full URLs
 const toFullUrl = (path, req) => {
   if (!path) return null;
   if (path.startsWith("http")) return path;
   if (path.startsWith("data:image")) return path;
-  // Convert ANY path starting with / to full URL
   if (path.startsWith("/")) {
     const baseUrl =
       process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
@@ -21,7 +24,14 @@ const toFullUrl = (path, req) => {
   return path;
 };
 
-// Middleware to check if user is admin
+// Validate hex code format
+const isValidHex = (hex) => /^#[0-9A-Fa-f]{6}$/.test(hex);
+
+// ============================================================================
+// MIDDLEWARE
+// ============================================================================
+
+// Check if user is admin
 const isAdmin = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id || req.user.sub;
@@ -65,7 +75,7 @@ router.use(isAdmin);
 // ORDER ROUTES
 // ============================================================================
 
-// 🔥 UPDATED: Get all orders with back logo support
+// Get all orders with back logo support
 router.get("/orders", async (req, res) => {
   try {
     const allOrders = await db
@@ -89,8 +99,8 @@ router.get("/orders", async (req, res) => {
         designColor: designs.color,
         shirtType: designs.shirtType,
         logoDecal: designs.logoDecal,
-        backLogoDecal: designs.backLogoDecal, // 🆕 Back logo
-        hasBackLogo: designs.hasBackLogo, // 🆕 Back logo flag
+        backLogoDecal: designs.backLogoDecal,
+        hasBackLogo: designs.hasBackLogo,
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
@@ -100,12 +110,11 @@ router.get("/orders", async (req, res) => {
       .leftJoin(designs, eq(orders.designId, designs.id))
       .orderBy(sql`${orders.orderDate} DESC`);
 
-    // 🔥 Convert file paths to full URLs including back logo
     const ordersWithUrls = allOrders.map((order) => ({
       ...order,
       designThumbnail: toFullUrl(order.designThumbnail, req),
       logoDecal: toFullUrl(order.logoDecal, req),
-      backLogoDecal: toFullUrl(order.backLogoDecal, req), // 🆕
+      backLogoDecal: toFullUrl(order.backLogoDecal, req),
       fullDecal: toFullUrl(order.fullDecal, req),
     }));
 
@@ -118,7 +127,7 @@ router.get("/orders", async (req, res) => {
   }
 });
 
-// 🔥 UPDATED: Get single order with back logo support
+// Get single order with back logo support
 router.get("/orders/:id", async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -144,8 +153,8 @@ router.get("/orders/:id", async (req, res) => {
         designColor: designs.color,
         shirtType: designs.shirtType,
         logoDecal: designs.logoDecal,
-        backLogoDecal: designs.backLogoDecal, // 🆕 Back logo
-        hasBackLogo: designs.hasBackLogo, // 🆕 Back logo flag
+        backLogoDecal: designs.backLogoDecal,
+        hasBackLogo: designs.hasBackLogo,
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
@@ -159,12 +168,11 @@ router.get("/orders/:id", async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // 🔥 Convert file paths to full URLs including back logo
     const orderWithUrls = {
       ...order,
       designThumbnail: toFullUrl(order.designThumbnail, req),
       logoDecal: toFullUrl(order.logoDecal, req),
-      backLogoDecal: toFullUrl(order.backLogoDecal, req), // 🆕
+      backLogoDecal: toFullUrl(order.backLogoDecal, req),
       fullDecal: toFullUrl(order.fullDecal, req),
     };
 
@@ -181,13 +189,11 @@ router.patch("/orders/:id/status", async (req, res) => {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
 
-    // Validate status
     const validStatuses = ["pending", "processing", "shipped", "delivered"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    // Update shipped date if status is changed to 'shipped'
     const updateData = { status };
     if (status === "shipped") {
       updateData.shippedDate = new Date();
@@ -230,9 +236,7 @@ router.patch("/pricing/:id", async (req, res) => {
       return res.status(400).json({ message: "Price cannot be negative" });
     }
 
-    const updateData = {
-      updatedAt: new Date(),
-    };
+    const updateData = { updatedAt: new Date() };
 
     if (price !== undefined) updateData.price = price.toString();
     if (description !== undefined) updateData.description = description;
@@ -263,9 +267,7 @@ router.post("/pricing", async (req, res) => {
       isActive: true,
     });
 
-    res.status(201).json({
-      message: "Pricing item created successfully",
-    });
+    res.status(201).json({ message: "Pricing item created successfully" });
   } catch (error) {
     console.error("Error creating pricing:", error);
     res.status(500).json({ message: "Server error" });
@@ -276,12 +278,105 @@ router.post("/pricing", async (req, res) => {
 router.delete("/pricing/:id", async (req, res) => {
   try {
     const pricingId = parseInt(req.params.id);
-
     await db.delete(pricing).where(eq(pricing.id, pricingId));
-
     res.json({ message: "Pricing item deleted successfully" });
   } catch (error) {
     console.error("Error deleting pricing:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+// COLORS ROUTES
+// ============================================================================
+
+// Get all colors (includes inactive)
+router.get("/colors", async (req, res) => {
+  try {
+    const allColors = await db.select().from(colors).orderBy(colors.sortOrder);
+
+    console.log(`✅ Fetched ${allColors.length} colors for admin`);
+    res.json(allColors);
+  } catch (error) {
+    console.error("Error fetching colors:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Add new color
+router.post("/colors", async (req, res) => {
+  try {
+    const { name, hexCode, isActive = true, sortOrder = 0 } = req.body;
+
+    if (!name || !hexCode) {
+      return res.status(400).json({ message: "Name and hex code required" });
+    }
+
+    if (!isValidHex(hexCode)) {
+      return res.status(400).json({ message: "Invalid hex code format" });
+    }
+
+    const [newColor] = await db
+      .insert(colors)
+      .values({
+        name,
+        hexCode: hexCode.toUpperCase(),
+        isActive,
+        sortOrder,
+      })
+      .$returningId();
+
+    const [insertedColor] = await db
+      .select()
+      .from(colors)
+      .where(eq(colors.id, newColor.id));
+
+    console.log(`✅ Color "${name}" added successfully`);
+    res.status(201).json(insertedColor);
+  } catch (error) {
+    console.error("Error adding color:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Update color
+router.patch("/colors/:id", async (req, res) => {
+  try {
+    const colorId = parseInt(req.params.id);
+    const updates = req.body;
+
+    if (updates.hexCode) {
+      if (!isValidHex(updates.hexCode)) {
+        return res.status(400).json({ message: "Invalid hex code format" });
+      }
+      updates.hexCode = updates.hexCode.toUpperCase();
+    }
+
+    await db.update(colors).set(updates).where(eq(colors.id, colorId));
+
+    const [updatedColor] = await db
+      .select()
+      .from(colors)
+      .where(eq(colors.id, colorId));
+
+    console.log(`✅ Color ID ${colorId} updated successfully`);
+    res.json(updatedColor);
+  } catch (error) {
+    console.error("Error updating color:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Delete color
+router.delete("/colors/:id", async (req, res) => {
+  try {
+    const colorId = parseInt(req.params.id);
+    await db.delete(colors).where(eq(colors.id, colorId));
+
+    console.log(`✅ Color ID ${colorId} deleted successfully`);
+    res.json({ message: "Color deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting color:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
