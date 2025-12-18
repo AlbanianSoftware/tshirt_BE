@@ -132,12 +132,14 @@ const parseDesign = (design, req) => ({
 });
 
 // 🔥 SAVE NEW DESIGN
+// 🔥 SAVE NEW DESIGN - FIXED VERSION
 router.post("/", authenticateToken, async (req, res) => {
   try {
     const {
       name,
       color,
       shirtType,
+      size,
       logoDecal,
       backLogoDecal,
       fullDecal,
@@ -154,18 +156,42 @@ router.post("/", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Name and color are required" });
     }
 
+    // 🔥 CRITICAL FIX: Parse logoPosition to check if front logo is on back
+    const positions = Array.isArray(logoPosition)
+      ? logoPosition
+      : logoPosition
+      ? [logoPosition]
+      : ["front"];
+
+    const hasFrontLogoOnBack =
+      positions.includes("back") && isLogoTexture && !!logoDecal;
+    const hasDedicatedBackLogo = !!backLogoDecal;
+    const shouldSetBackLogoFlag = hasFrontLogoOnBack || hasDedicatedBackLogo;
+
+    console.log("🔍 Design Save Debug:", {
+      logoPosition,
+      positions,
+      isLogoTexture,
+      logoDecal: !!logoDecal,
+      backLogoDecal: !!backLogoDecal,
+      hasFrontLogoOnBack,
+      hasDedicatedBackLogo,
+      shouldSetBackLogoFlag,
+    });
+
     // Insert design
     const result = await db.insert(designs).values({
       userId: req.user.userId,
       name,
       color,
       shirtType: shirtType || "tshirt",
+      size: size || "M",
       logoDecal: null,
       backLogoDecal: null,
-      fullDecal: null,
+      fullDecal: isFullTexture ? null : null,
       isLogoTexture: isLogoTexture || false,
       isFullTexture: isFullTexture || false,
-      hasBackLogo: !!backLogoDecal,
+      hasBackLogo: shouldSetBackLogoFlag, // 🔥 SET FLAG CORRECTLY
       textData: textData ? JSON.stringify(textData) : null,
       logoData: logo ? JSON.stringify(logo) : null,
       logoPosition: logoPosition
@@ -184,29 +210,50 @@ router.post("/", authenticateToken, async (req, res) => {
 
     console.log("✅ Design inserted:", designId);
 
+    // 🔥 CRITICAL FIX: If front logo is on back AND no dedicated back logo,
+    // save the front logo as BOTH front AND back
+    let backLogoToSave = backLogoDecal;
+    if (hasFrontLogoOnBack && !hasDedicatedBackLogo) {
+      backLogoToSave = logoDecal; // Use front logo for back too
+      console.log("🔥 Using front logo for back position");
+    }
+
     // Save files
     const [logoPath, backLogoPath, fullPath, thumbPath] = await Promise.all([
       saveAndCompressImage(logoDecal, "logo", req.user.userId, designId),
-      saveAndCompressImage(
-        backLogoDecal,
-        "backLogo",
-        req.user.userId,
-        designId
-      ),
-      saveAndCompressImage(fullDecal, "texture", req.user.userId, designId),
+      backLogoToSave // 🔥 Save back logo if either dedicated OR front-on-back
+        ? saveAndCompressImage(
+            backLogoToSave,
+            "backLogo",
+            req.user.userId,
+            designId
+          )
+        : null,
+      isFullTexture
+        ? saveAndCompressImage(fullDecal, "texture", req.user.userId, designId)
+        : null,
       saveAndCompressImage(thumbnail, "thumb", req.user.userId, designId),
     ]);
+
+    console.log("🔥 Saved files:", {
+      logoPath,
+      backLogoPath,
+      fullPath,
+      thumbPath,
+    });
 
     // Update with file paths
     await db
       .update(designs)
       .set({
         logoDecal: logoPath,
-        backLogoDecal: backLogoPath,
+        backLogoDecal: backLogoPath, // 🔥 Now properly saved
         fullDecal: fullPath,
         thumbnail: thumbPath,
       })
       .where(eq(designs.id, designId));
+
+    console.log("✅ Design saved with back logo support");
 
     res.status(201).json({ message: "Design saved successfully", designId });
   } catch (error) {

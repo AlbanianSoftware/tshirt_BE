@@ -35,6 +35,7 @@ export const designs = mysqlTable("designs", {
   name: varchar("name", { length: 255 }).notNull(),
   color: varchar("color", { length: 7 }).notNull(),
   shirtType: varchar("shirt_type", { length: 50 }).notNull().default("tshirt"),
+  size: varchar("size", { length: 10 }).default("M"), // XS, S, M, L, XL, XXL
 
   // FRONT LOGO
   logoDecal: mediumtext("logo_decal"),
@@ -157,6 +158,7 @@ export const orders = mysqlTable("orders", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id").notNull(),
   designId: int("design_id").notNull(),
+  size: varchar("size", { length: 10 }).notNull().default("M"),
   status: mysqlEnum("status", [
     "pending",
     "processing",

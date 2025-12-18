@@ -40,8 +40,16 @@ const calculateOrderPrice = (design, pricingData) => {
     price += pricingData.logo || 5;
   }
 
-  // 🔥 Back logo (separate charge)
-  if (design.hasBackLogo && design.backLogoDecal) {
+  // 🔥 FIXED: Back logo logic
+  // Charge if EITHER:
+  // 1. Has separate back logo (backLogoDecal exists), OR
+  // 2. hasBackLogo flag is true (meaning front logo is on back)
+  const hasDedicatedBackLogo =
+    design.backLogoDecal && design.backLogoDecal.trim() !== "";
+  const hasFrontLogoOnBack =
+    design.hasBackLogo && !hasDedicatedBackLogo && design.logoDecal;
+
+  if (hasDedicatedBackLogo || hasFrontLogoOnBack) {
     price += pricingData.back_logo || pricingData.logo || 5;
   }
 
@@ -67,9 +75,11 @@ router.get("/", authenticateToken, async (req, res) => {
         designId: designs.id,
         designName: designs.name,
         color: designs.color,
+        size: designs.size,
         logoDecal: designs.logoDecal,
         backLogoDecal: designs.backLogoDecal,
         hasBackLogo: designs.hasBackLogo,
+        logoPosition: designs.logoPosition, // 🔥 ADDED THIS!
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
@@ -80,14 +90,35 @@ router.get("/", authenticateToken, async (req, res) => {
       .innerJoin(designs, eq(cartItems.designId, designs.id))
       .where(eq(cartItems.userId, userId));
 
-    // 🔥 FIX: Convert file paths to full URLs
-    const cartWithUrls = userCart.map((item) => ({
-      ...item,
-      thumbnail: toFullUrl(item.thumbnail, req),
-      logoDecal: toFullUrl(item.logoDecal, req),
-      backLogoDecal: toFullUrl(item.backLogoDecal, req),
-      fullDecal: toFullUrl(item.fullDecal, req),
-    }));
+    // 🔥 FIX: Convert file paths to full URLs AND parse logoPosition JSON
+    const cartWithUrls = userCart.map((item) => {
+      // Parse logoPosition if it's a JSON string
+      let logoPositions = item.logoPosition;
+      if (typeof logoPositions === "string") {
+        try {
+          logoPositions = JSON.parse(logoPositions);
+        } catch (e) {
+          logoPositions = ["front"]; // fallback
+        }
+      }
+      console.log("🛒 Cart item debug:", {
+        designName: item.designName,
+        logoPosition_raw: item.logoPosition,
+        logoPositions_parsed: logoPositions,
+        hasBackLogo: item.hasBackLogo,
+        logoDecal: item.logoDecal,
+        backLogoDecal: item.backLogoDecal,
+      });
+
+      return {
+        ...item,
+        logoPositions, // Use plural to match frontend expectation
+        thumbnail: toFullUrl(item.thumbnail, req),
+        logoDecal: toFullUrl(item.logoDecal, req),
+        backLogoDecal: toFullUrl(item.backLogoDecal, req),
+        fullDecal: toFullUrl(item.fullDecal, req),
+      };
+    });
 
     console.log(
       `✅ Fetched ${cartWithUrls.length} cart items for user ${userId}`
@@ -257,6 +288,7 @@ router.post("/checkout", authenticateToken, async (req, res) => {
         phoneNumber,
         shippingAddress,
         price: totalPrice.toFixed(2),
+        size: design.size,
         orderDate: new Date(),
       });
 

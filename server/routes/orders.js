@@ -94,6 +94,8 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId || req.user.id;
 
+    console.log("🔍 Fetching orders for user:", userId);
+
     const userOrders = await db
       .select({
         id: orders.id,
@@ -107,10 +109,15 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
         phoneNumber: orders.phoneNumber,
         designName: designs.name,
         designThumbnail: designs.thumbnail,
+        designColor: designs.color,
+        size: designs.size,
         logoDecal: designs.logoDecal,
-        backLogoDecal: designs.backLogoDecal, // 🆕 Back logo
-        hasBackLogo: designs.hasBackLogo, // 🆕 Back logo flag
+        backLogoDecal: designs.backLogoDecal,
+        hasBackLogo: designs.hasBackLogo,
+        logoPosition: designs.logoPosition, // 🔥 CRITICAL
+        isLogoTexture: designs.isLogoTexture,
         fullDecal: designs.fullDecal,
+        isFullTexture: designs.isFullTexture,
         shirtType: designs.shirtType,
       })
       .from(orders)
@@ -118,14 +125,41 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
       .where(eq(orders.userId, userId))
       .orderBy(desc(orders.orderDate));
 
-    // 🔥 Convert file paths to full URLs including back logo
-    const ordersWithUrls = userOrders.map((order) => ({
-      ...order,
-      designThumbnail: toFullUrl(order.designThumbnail, req),
-      logoDecal: toFullUrl(order.logoDecal, req),
-      backLogoDecal: toFullUrl(order.backLogoDecal, req), // 🆕
-      fullDecal: toFullUrl(order.fullDecal, req),
-    }));
+    console.log("🔍 Raw orders from DB:", userOrders.length);
+    if (userOrders.length > 0) {
+      console.log("🔍 First order logoPosition:", userOrders[0].logoPosition);
+    }
+
+    // 🔥 Convert file paths to full URLs + parse logoPosition JSON
+    const ordersWithUrls = userOrders.map((order) => {
+      let logoPositions = order.logoPosition;
+
+      console.log(
+        "🔍 Processing order",
+        order.id,
+        "logoPosition raw:",
+        logoPositions
+      );
+
+      if (typeof logoPositions === "string") {
+        try {
+          logoPositions = JSON.parse(logoPositions);
+          console.log("🔍 Parsed to:", logoPositions);
+        } catch (e) {
+          console.log("⚠️ Failed to parse, using default");
+          logoPositions = ["front"];
+        }
+      }
+
+      return {
+        ...order,
+        logoPosition: logoPositions,
+        designThumbnail: toFullUrl(order.designThumbnail, req),
+        logoDecal: toFullUrl(order.logoDecal, req),
+        backLogoDecal: toFullUrl(order.backLogoDecal, req),
+        fullDecal: toFullUrl(order.fullDecal, req),
+      };
+    });
 
     console.log(
       `✅ Fetched ${ordersWithUrls.length} orders for user ${userId}`

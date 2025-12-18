@@ -84,6 +84,7 @@ router.get("/orders", async (req, res) => {
         userId: orders.userId,
         designId: orders.designId,
         status: orders.status,
+        size: orders.size,
         customerName: orders.customerName,
         customerSurname: orders.customerSurname,
         phoneNumber: orders.phoneNumber,
