@@ -1,4 +1,4 @@
-// db/schema.js - UPDATED with likes, comments, and soft deletes
+// db/schema.js - UPDATED with device tracking
 import {
   mysqlTable,
   serial,
@@ -16,17 +16,16 @@ import {
 } from "drizzle-orm/mysql-core";
 
 // Users table
-// Add this to your users table in db/schema.js
 export const users = mysqlTable("users", {
   id: int("id").primaryKey().autoincrement(),
   username: varchar("username", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   password: varchar("password", { length: 255 }).notNull(),
-  isAdmin: boolean("is_admin").default(false), // 👈 ADD THIS LINE
+  isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// db/schema.js - Add these fields to the designs table
+// Designs table
 export const designs = mysqlTable("designs", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id")
@@ -47,21 +46,21 @@ export const designs = mysqlTable("designs", {
   hasBackLogo: boolean("has_back_logo").default(false),
   backLogoPosition: mediumtext("back_logo_position"),
 
-  // 🆕 FRONT TEXT
-  frontTextDecal: mediumtext("front_text_decal"), // Generated PNG texture
-  frontTextData: mediumtext("front_text_data"), // JSON config for regeneration
+  // FRONT TEXT
+  frontTextDecal: mediumtext("front_text_decal"),
+  frontTextData: mediumtext("front_text_data"),
   hasFrontText: boolean("has_front_text").default(false),
 
-  // 🆕 BACK TEXT
-  backTextDecal: mediumtext("back_text_decal"), // Generated PNG texture
-  backTextData: mediumtext("back_text_data"), // JSON config for regeneration
+  // BACK TEXT
+  backTextDecal: mediumtext("back_text_decal"),
+  backTextData: mediumtext("back_text_data"),
   hasBackText: boolean("has_back_text").default(false),
 
   // FULL TEXTURE
   fullDecal: mediumtext("full_decal"),
   isFullTexture: boolean("is_full_texture").default(false),
 
-  textData: mediumtext("text_data"), // Legacy field, keep for backwards compatibility
+  textData: mediumtext("text_data"),
   logoData: mediumtext("logo_data"),
   thumbnail: mediumtext("thumbnail"),
 
@@ -69,7 +68,7 @@ export const designs = mysqlTable("designs", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
-// Update orders to include text data
+// Orders table - UPDATED with device tracking
 export const orders = mysqlTable("orders", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("user_id").notNull(),
@@ -89,7 +88,12 @@ export const orders = mysqlTable("orders", {
   shippedDate: timestamp("shipped_date"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 
-  // 🆕 TEXT FIELDS (optional - for faster queries without JOIN)
+  // NEW: Device tracking fields
+  deviceType: varchar("device_type", { length: 20 }).default("desktop"),
+  userAgent: text("user_agent"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+
+  // TEXT FIELDS
   frontTextDecal: mediumtext("front_text_decal"),
   backTextDecal: mediumtext("back_text_decal"),
   frontTextData: mediumtext("front_text_data"),
@@ -100,10 +104,10 @@ export const orders = mysqlTable("orders", {
 
 export const colors = mysqlTable("colors", {
   id: int("id").primaryKey().autoincrement(),
-  name: varchar("name", { length: 50 }).notNull(), // e.g., "Black", "Navy Blue"
-  hexCode: varchar("hex_code", { length: 7 }).notNull(), // e.g., "#000000"
-  isActive: boolean("is_active").default(true), // In stock or not
-  sortOrder: int("sort_order").default(0), // Display order
+  name: varchar("name", { length: 50 }).notNull(),
+  hexCode: varchar("hex_code", { length: 7 }).notNull(),
+  isActive: boolean("is_active").default(true),
+  sortOrder: int("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
@@ -121,9 +125,9 @@ export const communityPosts = mysqlTable(
     title: varchar("title", { length: 255 }).notNull(),
     description: mediumtext("description"),
     views: int("views").default(0),
-    likesCount: int("likes_count").default(0), // 🆕 Cached like count
-    commentsCount: int("comments_count").default(0), // 🆕 Cached comment count
-    deletedAt: timestamp("deleted_at"), // 🆕 Soft delete
+    likesCount: int("likes_count").default(0),
+    commentsCount: int("comments_count").default(0),
+    deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   },
@@ -134,7 +138,6 @@ export const communityPosts = mysqlTable(
   })
 );
 
-// 🆕 Likes table - tracks who liked what
 export const postLikes = mysqlTable(
   "post_likes",
   {
@@ -152,7 +155,6 @@ export const postLikes = mysqlTable(
   })
 );
 
-// 🆕 Comments table
 export const postComments = mysqlTable(
   "post_comments",
   {
@@ -164,7 +166,7 @@ export const postComments = mysqlTable(
       .notNull()
       .references(() => communityPosts.id, { onDelete: "cascade" }),
     content: mediumtext("content").notNull(),
-    deletedAt: timestamp("deleted_at"), // 🆕 Soft delete for comments
+    deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
   },

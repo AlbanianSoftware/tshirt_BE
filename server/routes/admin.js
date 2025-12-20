@@ -94,6 +94,10 @@ router.get("/orders", async (req, res) => {
         orderDate: orders.orderDate,
         shippedDate: orders.shippedDate,
         price: orders.price,
+        // NEW: Device tracking fields
+        deviceType: orders.deviceType,
+        userAgent: orders.userAgent,
+        ipAddress: orders.ipAddress,
         createdAt: orders.createdAt,
         username: users.username,
         userEmail: users.email,
@@ -104,11 +108,10 @@ router.get("/orders", async (req, res) => {
         logoDecal: designs.logoDecal,
         backLogoDecal: designs.backLogoDecal,
         hasBackLogo: designs.hasBackLogo,
-        logoPosition: designs.logoPosition, // 🔥 ADDED
+        logoPosition: designs.logoPosition,
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
-        // 🔥 TEXT FIELDS - THIS WAS MISSING!
         frontTextDecal: designs.frontTextDecal,
         backTextDecal: designs.backTextDecal,
         frontTextData: designs.frontTextData,
@@ -122,7 +125,6 @@ router.get("/orders", async (req, res) => {
       .orderBy(sql`${orders.orderDate} DESC`);
 
     const ordersWithUrls = allOrders.map((order) => {
-      // Parse logoPosition JSON
       let logoPositions = order.logoPosition;
       if (typeof logoPositions === "string") {
         try {
@@ -139,7 +141,6 @@ router.get("/orders", async (req, res) => {
         logoDecal: toFullUrl(order.logoDecal, req),
         backLogoDecal: toFullUrl(order.backLogoDecal, req),
         fullDecal: toFullUrl(order.fullDecal, req),
-        // 🔥 TEXT URLS - THIS WAS MISSING!
         frontTextDecal: toFullUrl(order.frontTextDecal, req),
         backTextDecal: toFullUrl(order.backTextDecal, req),
       };

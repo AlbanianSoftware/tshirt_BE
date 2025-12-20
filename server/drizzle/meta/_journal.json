@@ -120,6 +120,13 @@
       "when": 1766185045658,
       "tag": "0016_curly_wong",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1766234187064,
+      "tag": "0017_keen_vindicator",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,4 @@
+// server/routes/cart.js - UPDATED CHECKOUT with device tracking
 import express from "express";
 import { db } from "../db/index.js";
 import {
@@ -13,10 +14,11 @@ import {
 } from "../db/schema.js";
 import { eq, and, inArray } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
+import { getDeviceInfo } from "../utils/deviceUtils.js"; // Import device utility
 
 const router = express.Router();
 
-// 🔥 Helper to convert paths to full URLs
+// Helper to convert paths to full URLs
 const toFullUrl = (path, req) => {
   if (!path) return null;
   if (path.startsWith("http")) return path;
@@ -29,17 +31,15 @@ const toFullUrl = (path, req) => {
   return path;
 };
 
-// 🔥 Helper: Calculate price with back logo AND TEXT support
+// Helper: Calculate price with text support
 const calculateOrderPrice = (design, pricingData) => {
   const shirtTypeKey = (design.shirtType || "tshirt").toLowerCase();
   let price = pricingData[shirtTypeKey] || 20;
 
-  // Front logo
   if (design.isLogoTexture && design.logoDecal) {
     price += pricingData.logo || 5;
   }
 
-  // Back logo
   const hasDedicatedBackLogo =
     design.backLogoDecal && design.backLogoDecal.trim() !== "";
   const hasFrontLogoOnBack =
@@ -49,12 +49,10 @@ const calculateOrderPrice = (design, pricingData) => {
     price += pricingData.back_logo || pricingData.logo || 5;
   }
 
-  // Full texture
   if (design.isFullTexture && design.fullDecal) {
     price += pricingData.full_texture || 8;
   }
 
-  // 🆕 FRONT TEXT
   if (
     (design.frontTextDecal && design.frontTextDecal.trim() !== "") ||
     design.hasFrontText
@@ -62,7 +60,6 @@ const calculateOrderPrice = (design, pricingData) => {
     price += pricingData.front_text || pricingData.text || 2;
   }
 
-  // 🆕 BACK TEXT
   if (
     (design.backTextDecal && design.backTextDecal.trim() !== "") ||
     design.hasBackText
@@ -73,12 +70,11 @@ const calculateOrderPrice = (design, pricingData) => {
   return price;
 };
 
-// 🔥 GET USER'S CART - FIXED WITH TEXT FIELDS
+// GET USER'S CART
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    // Get cart items with design details INCLUDING TEXT FIELDS
     const userCart = await db
       .select({
         cartItemId: cartItems.id,
@@ -97,7 +93,6 @@ router.get("/", authenticateToken, async (req, res) => {
         isFullTexture: designs.isFullTexture,
         thumbnail: designs.thumbnail,
         shirtType: designs.shirtType,
-        // 🆕 TEXT FIELDS - THIS WAS MISSING!
         frontTextDecal: designs.frontTextDecal,
         backTextDecal: designs.backTextDecal,
         frontTextData: designs.frontTextData,
@@ -109,9 +104,7 @@ router.get("/", authenticateToken, async (req, res) => {
       .innerJoin(designs, eq(cartItems.designId, designs.id))
       .where(eq(cartItems.userId, userId));
 
-    // Convert file paths to full URLs AND parse logoPosition JSON
     const cartWithUrls = userCart.map((item) => {
-      // Parse logoPosition if it's a JSON string
       let logoPositions = item.logoPosition;
       if (typeof logoPositions === "string") {
         try {
@@ -124,12 +117,11 @@ router.get("/", authenticateToken, async (req, res) => {
       return {
         ...item,
         logoPositions,
-        logoPosition: logoPositions, // Keep both for compatibility
+        logoPosition: logoPositions,
         thumbnail: toFullUrl(item.thumbnail, req),
         logoDecal: toFullUrl(item.logoDecal, req),
         backLogoDecal: toFullUrl(item.backLogoDecal, req),
         fullDecal: toFullUrl(item.fullDecal, req),
-        // 🆕 TEXT URLS
         frontTextDecal: toFullUrl(item.frontTextDecal, req),
         backTextDecal: toFullUrl(item.backTextDecal, req),
       };
@@ -156,7 +148,6 @@ router.post("/add", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Design ID is required" });
     }
 
-    // Check if design exists and belongs to user
     const design = await db
       .select()
       .from(designs)
@@ -167,7 +158,6 @@ router.post("/add", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Design not found" });
     }
 
-    // Check if item already in cart
     const existingItem = await db
       .select()
       .from(cartItems)
@@ -177,7 +167,6 @@ router.post("/add", authenticateToken, async (req, res) => {
       .limit(1);
 
     if (existingItem.length > 0) {
-      // Update quantity
       await db
         .update(cartItems)
         .set({ quantity: existingItem[0].quantity + 1 })
@@ -189,7 +178,6 @@ router.post("/add", authenticateToken, async (req, res) => {
       });
     }
 
-    // Add new item
     const result = await db.insert(cartItems).values({
       userId,
       designId,
@@ -243,7 +231,7 @@ router.put("/:cartItemId", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔥 CHECKOUT - Create orders from cart items (with text pricing)
+// CHECKOUT - UPDATED with device tracking
 router.post("/checkout", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -257,7 +245,12 @@ router.post("/checkout", authenticateToken, async (req, res) => {
         .json({ error: "All customer information is required" });
     }
 
-    // 1. Get user's cart items
+    // Get device info from request
+    const deviceInfo = getDeviceInfo(req);
+
+    console.log("📱 Device info:", deviceInfo);
+
+    // Get user's cart items
     const userCartItems = await db
       .select()
       .from(cartItems)
@@ -267,32 +260,31 @@ router.post("/checkout", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
-    // 2. Get all design details (including text data)
+    // Get all design details
     const designIds = userCartItems.map((item) => item.designId);
     const designsData = await db
       .select()
       .from(designs)
       .where(inArray(designs.id, designIds));
 
-    // 3. Get pricing data
+    // Get pricing data
     const pricingData = await db.select().from(pricingTable);
     const pricingMap = {};
     pricingData.forEach((item) => {
       pricingMap[item.itemType] = parseFloat(item.price);
     });
 
-    // 4. Create orders with proper pricing (including text)
+    // Create orders with device tracking
     const createdOrders = [];
 
     for (const cartItem of userCartItems) {
       const design = designsData.find((d) => d.id === cartItem.designId);
       if (!design) continue;
 
-      // 🔥 Calculate price INCLUDING text
       const unitPrice = calculateOrderPrice(design, pricingMap);
       const totalPrice = unitPrice * cartItem.quantity;
 
-      // Create order
+      // Create order WITH device info
       const result = await db.insert(orders).values({
         userId,
         designId: design.id,
@@ -304,6 +296,10 @@ router.post("/checkout", authenticateToken, async (req, res) => {
         price: totalPrice.toFixed(2),
         size: design.size,
         orderDate: new Date(),
+        // NEW: Device tracking
+        deviceType: deviceInfo.deviceType,
+        userAgent: deviceInfo.userAgent,
+        ipAddress: deviceInfo.ipAddress,
       });
 
       const orderId = Array.isArray(result)
@@ -318,23 +314,23 @@ router.post("/checkout", authenticateToken, async (req, res) => {
       });
 
       console.log(
-        `✅ Order ${orderId} created - €${totalPrice.toFixed(2)} (qty: ${
-          cartItem.quantity
-        })`
+        `✅ Order ${orderId} created - €${totalPrice.toFixed(2)} from ${
+          deviceInfo.deviceType
+        }`
       );
     }
 
-    // 5. Clear the cart
+    // Clear the cart
     await db.delete(cartItems).where(eq(cartItems.userId, userId));
 
-    // 6. Get user's email from database
+    // Get user's email
     const [user] = await db
       .select({ email: users.email })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
 
-    // 7. Send confirmation email (non-blocking)
+    // Send confirmation email (non-blocking)
     if (user?.email) {
       const orderDetails = {
         items: createdOrders.map((order) => {
@@ -362,7 +358,6 @@ router.post("/checkout", authenticateToken, async (req, res) => {
         shippingAddress,
       };
 
-      // Send emails (don't await - let them run in background)
       sendOrderConfirmation({
         customerEmail: user.email,
         customerName,
@@ -378,9 +373,8 @@ router.post("/checkout", authenticateToken, async (req, res) => {
       });
     }
 
-    // 8. Send response
     res.json({
-      message: "Orders created successfully! 🎉",
+      message: "Orders created successfully!",
       orders: createdOrders,
       ordersCreated: createdOrders.length,
     });
@@ -390,15 +384,13 @@ router.post("/checkout", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔥 GET USER'S ORDERS (with text data)
+// GET USER'S ORDERS
 router.get("/orders", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    // Get orders with design data via JOIN
     const userOrders = await db
       .select({
-        // Order fields
         id: orders.id,
         status: orders.status,
         customerName: orders.customerName,
@@ -408,8 +400,6 @@ router.get("/orders", authenticateToken, async (req, res) => {
         price: orders.price,
         orderDate: orders.orderDate,
         shippedDate: orders.shippedDate,
-
-        // Design fields
         designName: designs.name,
         designThumbnail: designs.thumbnail,
         shirtType: designs.shirtType,
@@ -420,7 +410,6 @@ router.get("/orders", authenticateToken, async (req, res) => {
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
-        // 🆕 TEXT FIELDS
         frontTextDecal: designs.frontTextDecal,
         backTextDecal: designs.backTextDecal,
         hasFrontText: designs.hasFrontText,
