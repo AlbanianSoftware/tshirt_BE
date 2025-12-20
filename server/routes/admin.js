@@ -76,6 +76,8 @@ router.use(isAdmin);
 // ============================================================================
 
 // Get all orders with back logo support
+// server/routes/admin.js - GET /orders route - FIXED WITH TEXT SUPPORT
+
 router.get("/orders", async (req, res) => {
   try {
     const allOrders = await db
@@ -102,22 +104,46 @@ router.get("/orders", async (req, res) => {
         logoDecal: designs.logoDecal,
         backLogoDecal: designs.backLogoDecal,
         hasBackLogo: designs.hasBackLogo,
+        logoPosition: designs.logoPosition, // 🔥 ADDED
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
+        // 🔥 TEXT FIELDS - THIS WAS MISSING!
+        frontTextDecal: designs.frontTextDecal,
+        backTextDecal: designs.backTextDecal,
+        frontTextData: designs.frontTextData,
+        backTextData: designs.backTextData,
+        hasFrontText: designs.hasFrontText,
+        hasBackText: designs.hasBackText,
       })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
       .leftJoin(designs, eq(orders.designId, designs.id))
       .orderBy(sql`${orders.orderDate} DESC`);
 
-    const ordersWithUrls = allOrders.map((order) => ({
-      ...order,
-      designThumbnail: toFullUrl(order.designThumbnail, req),
-      logoDecal: toFullUrl(order.logoDecal, req),
-      backLogoDecal: toFullUrl(order.backLogoDecal, req),
-      fullDecal: toFullUrl(order.fullDecal, req),
-    }));
+    const ordersWithUrls = allOrders.map((order) => {
+      // Parse logoPosition JSON
+      let logoPositions = order.logoPosition;
+      if (typeof logoPositions === "string") {
+        try {
+          logoPositions = JSON.parse(logoPositions);
+        } catch (e) {
+          logoPositions = ["front"];
+        }
+      }
+
+      return {
+        ...order,
+        logoPosition: logoPositions,
+        designThumbnail: toFullUrl(order.designThumbnail, req),
+        logoDecal: toFullUrl(order.logoDecal, req),
+        backLogoDecal: toFullUrl(order.backLogoDecal, req),
+        fullDecal: toFullUrl(order.fullDecal, req),
+        // 🔥 TEXT URLS - THIS WAS MISSING!
+        frontTextDecal: toFullUrl(order.frontTextDecal, req),
+        backTextDecal: toFullUrl(order.backTextDecal, req),
+      };
+    });
 
     console.log(`✅ Fetched ${ordersWithUrls.length} orders for admin`);
 

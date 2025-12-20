@@ -16,12 +16,11 @@ import { authenticateToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// 🔥 Helper to convert paths to full URLs (SAME AS orders.js)
+// 🔥 Helper to convert paths to full URLs
 const toFullUrl = (path, req) => {
   if (!path) return null;
   if (path.startsWith("http")) return path;
   if (path.startsWith("data:image")) return path;
-  // Convert ANY path starting with / to full URL
   if (path.startsWith("/")) {
     const baseUrl =
       process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
@@ -30,7 +29,7 @@ const toFullUrl = (path, req) => {
   return path;
 };
 
-// 🔥 Helper: Calculate price with back logo support
+// 🔥 Helper: Calculate price with back logo AND TEXT support
 const calculateOrderPrice = (design, pricingData) => {
   const shirtTypeKey = (design.shirtType || "tshirt").toLowerCase();
   let price = pricingData[shirtTypeKey] || 20;
@@ -40,10 +39,7 @@ const calculateOrderPrice = (design, pricingData) => {
     price += pricingData.logo || 5;
   }
 
-  // 🔥 FIXED: Back logo logic
-  // Charge if EITHER:
-  // 1. Has separate back logo (backLogoDecal exists), OR
-  // 2. hasBackLogo flag is true (meaning front logo is on back)
+  // Back logo
   const hasDedicatedBackLogo =
     design.backLogoDecal && design.backLogoDecal.trim() !== "";
   const hasFrontLogoOnBack =
@@ -58,15 +54,31 @@ const calculateOrderPrice = (design, pricingData) => {
     price += pricingData.full_texture || 8;
   }
 
+  // 🆕 FRONT TEXT
+  if (
+    (design.frontTextDecal && design.frontTextDecal.trim() !== "") ||
+    design.hasFrontText
+  ) {
+    price += pricingData.front_text || pricingData.text || 2;
+  }
+
+  // 🆕 BACK TEXT
+  if (
+    (design.backTextDecal && design.backTextDecal.trim() !== "") ||
+    design.hasBackText
+  ) {
+    price += pricingData.back_text || pricingData.text || 2;
+  }
+
   return price;
 };
 
-// 🔥 GET USER'S CART (with back logo data + FIXED URLs)
+// 🔥 GET USER'S CART - FIXED WITH TEXT FIELDS
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    // Get cart items with design details
+    // Get cart items with design details INCLUDING TEXT FIELDS
     const userCart = await db
       .select({
         cartItemId: cartItems.id,
@@ -79,18 +91,25 @@ router.get("/", authenticateToken, async (req, res) => {
         logoDecal: designs.logoDecal,
         backLogoDecal: designs.backLogoDecal,
         hasBackLogo: designs.hasBackLogo,
-        logoPosition: designs.logoPosition, // 🔥 ADDED THIS!
+        logoPosition: designs.logoPosition,
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
         thumbnail: designs.thumbnail,
         shirtType: designs.shirtType,
+        // 🆕 TEXT FIELDS - THIS WAS MISSING!
+        frontTextDecal: designs.frontTextDecal,
+        backTextDecal: designs.backTextDecal,
+        frontTextData: designs.frontTextData,
+        backTextData: designs.backTextData,
+        hasFrontText: designs.hasFrontText,
+        hasBackText: designs.hasBackText,
       })
       .from(cartItems)
       .innerJoin(designs, eq(cartItems.designId, designs.id))
       .where(eq(cartItems.userId, userId));
 
-    // 🔥 FIX: Convert file paths to full URLs AND parse logoPosition JSON
+    // Convert file paths to full URLs AND parse logoPosition JSON
     const cartWithUrls = userCart.map((item) => {
       // Parse logoPosition if it's a JSON string
       let logoPositions = item.logoPosition;
@@ -98,25 +117,21 @@ router.get("/", authenticateToken, async (req, res) => {
         try {
           logoPositions = JSON.parse(logoPositions);
         } catch (e) {
-          logoPositions = ["front"]; // fallback
+          logoPositions = ["front"];
         }
       }
-      console.log("🛒 Cart item debug:", {
-        designName: item.designName,
-        logoPosition_raw: item.logoPosition,
-        logoPositions_parsed: logoPositions,
-        hasBackLogo: item.hasBackLogo,
-        logoDecal: item.logoDecal,
-        backLogoDecal: item.backLogoDecal,
-      });
 
       return {
         ...item,
-        logoPositions, // Use plural to match frontend expectation
+        logoPositions,
+        logoPosition: logoPositions, // Keep both for compatibility
         thumbnail: toFullUrl(item.thumbnail, req),
         logoDecal: toFullUrl(item.logoDecal, req),
         backLogoDecal: toFullUrl(item.backLogoDecal, req),
         fullDecal: toFullUrl(item.fullDecal, req),
+        // 🆕 TEXT URLS
+        frontTextDecal: toFullUrl(item.frontTextDecal, req),
+        backTextDecal: toFullUrl(item.backTextDecal, req),
       };
     });
 
@@ -228,8 +243,7 @@ router.put("/:cartItemId", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔥 CHECKOUT - Create orders from cart items (with back logo pricing)
-// 🔥 CHECKOUT - Create orders from cart items (with back logo pricing)
+// 🔥 CHECKOUT - Create orders from cart items (with text pricing)
 router.post("/checkout", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -253,7 +267,7 @@ router.post("/checkout", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
-    // 2. Get all design details (including back logo data)
+    // 2. Get all design details (including text data)
     const designIds = userCartItems.map((item) => item.designId);
     const designsData = await db
       .select()
@@ -267,14 +281,14 @@ router.post("/checkout", authenticateToken, async (req, res) => {
       pricingMap[item.itemType] = parseFloat(item.price);
     });
 
-    // 4. Create orders with proper pricing (including back logo)
+    // 4. Create orders with proper pricing (including text)
     const createdOrders = [];
 
     for (const cartItem of userCartItems) {
       const design = designsData.find((d) => d.id === cartItem.designId);
       if (!design) continue;
 
-      // 🔥 Calculate price INCLUDING back logo
+      // 🔥 Calculate price INCLUDING text
       const unitPrice = calculateOrderPrice(design, pricingMap);
       const totalPrice = unitPrice * cartItem.quantity;
 
@@ -304,19 +318,10 @@ router.post("/checkout", authenticateToken, async (req, res) => {
       });
 
       console.log(
-        `✅ Order ${orderId} created - ${totalPrice.toFixed(2)} (qty: ${
+        `✅ Order ${orderId} created - €${totalPrice.toFixed(2)} (qty: ${
           cartItem.quantity
         })`
       );
-
-      // Log if back logo is present
-      if (design.hasBackLogo && design.backLogoDecal) {
-        console.log(
-          `   📍 Includes back logo - charged separately (+${
-            pricingMap.back_logo || pricingMap.logo || 5
-          })`
-        );
-      }
     }
 
     // 5. Clear the cart
@@ -346,6 +351,8 @@ router.post("/checkout", authenticateToken, async (req, res) => {
             backLogoDecal: design.backLogoDecal,
             isFullTexture: design.isFullTexture,
             fullDecal: design.fullDecal,
+            hasFrontText: design.hasFrontText,
+            hasBackText: design.hasBackText,
           };
         }),
         total: createdOrders
@@ -362,7 +369,6 @@ router.post("/checkout", authenticateToken, async (req, res) => {
         orderDetails,
       });
 
-      // Optional: Send yourself a notification
       sendAdminNotification({
         customerName: `${customerName} ${customerSurname}`,
         customerEmail: user.email,
@@ -372,7 +378,7 @@ router.post("/checkout", authenticateToken, async (req, res) => {
       });
     }
 
-    // 8. Send response (ONLY ONE res.json() call)
+    // 8. Send response
     res.json({
       message: "Orders created successfully! 🎉",
       orders: createdOrders,
@@ -384,7 +390,7 @@ router.post("/checkout", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔥 GET USER'S ORDERS (with back logo data)
+// 🔥 GET USER'S ORDERS (with text data)
 router.get("/orders", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -414,6 +420,11 @@ router.get("/orders", authenticateToken, async (req, res) => {
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
+        // 🆕 TEXT FIELDS
+        frontTextDecal: designs.frontTextDecal,
+        backTextDecal: designs.backTextDecal,
+        hasFrontText: designs.hasFrontText,
+        hasBackText: designs.hasBackText,
       })
       .from(orders)
       .innerJoin(designs, eq(orders.designId, designs.id))
