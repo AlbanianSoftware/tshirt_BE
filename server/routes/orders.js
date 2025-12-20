@@ -114,11 +114,18 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
         logoDecal: designs.logoDecal,
         backLogoDecal: designs.backLogoDecal,
         hasBackLogo: designs.hasBackLogo,
-        logoPosition: designs.logoPosition, // 🔥 CRITICAL
+        logoPosition: designs.logoPosition,
         isLogoTexture: designs.isLogoTexture,
         fullDecal: designs.fullDecal,
         isFullTexture: designs.isFullTexture,
         shirtType: designs.shirtType,
+        // 🆕 TEXT FIELDS
+        frontTextDecal: designs.frontTextDecal,
+        backTextDecal: designs.backTextDecal,
+        frontTextData: designs.frontTextData,
+        backTextData: designs.backTextData,
+        hasFrontText: designs.hasFrontText,
+        hasBackText: designs.hasBackText,
       })
       .from(orders)
       .leftJoin(designs, eq(orders.designId, designs.id))
@@ -126,27 +133,15 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
       .orderBy(desc(orders.orderDate));
 
     console.log("🔍 Raw orders from DB:", userOrders.length);
-    if (userOrders.length > 0) {
-      console.log("🔍 First order logoPosition:", userOrders[0].logoPosition);
-    }
 
-    // 🔥 Convert file paths to full URLs + parse logoPosition JSON
+    // Convert file paths to full URLs + parse JSON fields
     const ordersWithUrls = userOrders.map((order) => {
       let logoPositions = order.logoPosition;
-
-      console.log(
-        "🔍 Processing order",
-        order.id,
-        "logoPosition raw:",
-        logoPositions
-      );
 
       if (typeof logoPositions === "string") {
         try {
           logoPositions = JSON.parse(logoPositions);
-          console.log("🔍 Parsed to:", logoPositions);
         } catch (e) {
-          console.log("⚠️ Failed to parse, using default");
           logoPositions = ["front"];
         }
       }
@@ -158,6 +153,9 @@ router.get("/my-orders", authenticateToken, async (req, res) => {
         logoDecal: toFullUrl(order.logoDecal, req),
         backLogoDecal: toFullUrl(order.backLogoDecal, req),
         fullDecal: toFullUrl(order.fullDecal, req),
+        // 🆕 TEXT URLS
+        frontTextDecal: toFullUrl(order.frontTextDecal, req),
+        backTextDecal: toFullUrl(order.backTextDecal, req),
       };
     });
 
@@ -336,5 +334,203 @@ router.get("/:id/download-texture", authenticateToken, async (req, res) => {
     }
   }
 });
+
+router.get("/:id/download-front-text", authenticateToken, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+
+    const [order] = await db
+      .select({
+        frontTextDecal: designs.frontTextDecal,
+        frontTextData: designs.frontTextData,
+        designName: designs.name,
+      })
+      .from(orders)
+      .leftJoin(designs, eq(orders.designId, designs.id))
+      .where(eq(orders.id, orderId));
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // If we have the saved texture, use it
+    if (order.frontTextDecal) {
+      let filePath = order.frontTextDecal;
+
+      if (filePath.startsWith("http")) {
+        const url = new URL(filePath);
+        filePath = url.pathname;
+      }
+
+      const relativePath = filePath.startsWith("/")
+        ? filePath.substring(1)
+        : filePath;
+
+      const fullPath = path.join(__dirname, "../public", relativePath);
+
+      console.log("📂 Front text file:", fullPath);
+
+      const filename = `order-${orderId}-front-text.png`;
+      return res.download(fullPath, filename, (err) => {
+        if (err) {
+          console.error("❌ Download error:", err);
+          if (!res.headersSent) {
+            // Fallback: Generate from textData
+            generateTextImage(order, "front", res, orderId);
+          }
+        } else {
+          console.log("✅ Front text downloaded:", filename);
+        }
+      });
+    }
+
+    // Fallback: Generate from textData if no saved texture
+    if (order.frontTextData) {
+      return generateTextImage(order, "front", res, orderId);
+    }
+
+    res.status(404).json({ message: "No front text found" });
+  } catch (error) {
+    console.error("Error downloading front text:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+});
+
+// 🆕 Download back text
+router.get("/:id/download-back-text", authenticateToken, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+
+    const [order] = await db
+      .select({
+        backTextDecal: designs.backTextDecal,
+        backTextData: designs.backTextData,
+        designName: designs.name,
+      })
+      .from(orders)
+      .leftJoin(designs, eq(orders.designId, designs.id))
+      .where(eq(orders.id, orderId));
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.backTextDecal) {
+      let filePath = order.backTextDecal;
+
+      if (filePath.startsWith("http")) {
+        const url = new URL(filePath);
+        filePath = url.pathname;
+      }
+
+      const relativePath = filePath.startsWith("/")
+        ? filePath.substring(1)
+        : filePath;
+
+      const fullPath = path.join(__dirname, "../public", relativePath);
+
+      console.log("📂 Back text file:", fullPath);
+
+      const filename = `order-${orderId}-back-text.png`;
+      return res.download(fullPath, filename, (err) => {
+        if (err) {
+          console.error("❌ Download error:", err);
+          if (!res.headersSent) {
+            generateTextImage(order, "back", res, orderId);
+          }
+        } else {
+          console.log("✅ Back text downloaded:", filename);
+        }
+      });
+    }
+
+    if (order.backTextData) {
+      return generateTextImage(order, "back", res, orderId);
+    }
+
+    res.status(404).json({ message: "No back text found" });
+  } catch (error) {
+    console.error("Error downloading back text:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+});
+
+// 🆕 HELPER: Generate text image on-the-fly from config
+const generateTextImage = (order, position, res, orderId) => {
+  try {
+    const textDataField =
+      position === "front" ? "frontTextData" : "backTextData";
+    const textConfig = JSON.parse(order[textDataField]);
+
+    if (!textConfig || !textConfig.content) {
+      return res.status(404).json({ message: "No text data found" });
+    }
+
+    const { Canvas } = require("canvas");
+    const canvas = new Canvas(1024, 1024);
+    const ctx = canvas.getContext("2d");
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+
+    // Calculate position
+    const x = (textConfig.position.x / 100) * canvas.width;
+    const y = (textConfig.position.y / 100) * canvas.height;
+
+    // Move to position and rotate
+    ctx.translate(x, y);
+    ctx.rotate((textConfig.rotation * Math.PI) / 180);
+
+    // Set font
+    const fontWeight = textConfig.style.bold ? "bold" : "normal";
+    const fontStyle = textConfig.style.italic ? "italic" : "normal";
+    ctx.font = `${fontStyle} ${fontWeight} ${textConfig.size}px ${textConfig.font}`;
+    ctx.textAlign = textConfig.alignment;
+    ctx.textBaseline = "middle";
+
+    // Draw shadow
+    if (textConfig.style.shadow) {
+      ctx.shadowColor = textConfig.style.shadowColor;
+      ctx.shadowBlur = textConfig.style.shadowBlur;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+    }
+
+    // Draw outline
+    if (textConfig.style.outline) {
+      ctx.strokeStyle = textConfig.style.outlineColor;
+      ctx.lineWidth = textConfig.style.outlineWidth;
+      ctx.lineJoin = "round";
+      ctx.miterLimit = 2;
+      ctx.strokeText(textConfig.content, 0, 0);
+    }
+
+    // Draw main text
+    ctx.fillStyle = textConfig.color;
+    ctx.fillText(textConfig.content, 0, 0);
+
+    ctx.restore();
+
+    // Send as PNG
+    const buffer = canvas.toBuffer("image/png");
+    const filename = `order-${orderId}-${position}-text.png`;
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+
+    console.log("✅ Generated text image:", filename);
+  } catch (error) {
+    console.error("Error generating text image:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Failed to generate text image" });
+    }
+  }
+};
 
 export default router;

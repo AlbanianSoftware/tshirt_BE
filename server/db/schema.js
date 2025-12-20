@@ -35,25 +35,67 @@ export const designs = mysqlTable("designs", {
   name: varchar("name", { length: 255 }).notNull(),
   color: varchar("color", { length: 7 }).notNull(),
   shirtType: varchar("shirt_type", { length: 50 }).notNull().default("tshirt"),
-  size: varchar("size", { length: 10 }).default("M"), // XS, S, M, L, XL, XXL
+  size: varchar("size", { length: 10 }).default("M"),
 
   // FRONT LOGO
   logoDecal: mediumtext("logo_decal"),
   isLogoTexture: boolean("is_logo_texture").default(false),
   logoPosition: mediumtext("logo_position"),
 
-  // 🆕 BACK LOGO - ADD THESE
-  backLogoDecal: mediumtext("back_logo_decal"), // Image for back logo
-  hasBackLogo: boolean("has_back_logo").default(false), // Flag if back logo exists
-  backLogoPosition: mediumtext("back_logo_position"), // Position data for back
+  // BACK LOGO
+  backLogoDecal: mediumtext("back_logo_decal"),
+  hasBackLogo: boolean("has_back_logo").default(false),
+  backLogoPosition: mediumtext("back_logo_position"),
 
+  // 🆕 FRONT TEXT
+  frontTextDecal: mediumtext("front_text_decal"), // Generated PNG texture
+  frontTextData: mediumtext("front_text_data"), // JSON config for regeneration
+  hasFrontText: boolean("has_front_text").default(false),
+
+  // 🆕 BACK TEXT
+  backTextDecal: mediumtext("back_text_decal"), // Generated PNG texture
+  backTextData: mediumtext("back_text_data"), // JSON config for regeneration
+  hasBackText: boolean("has_back_text").default(false),
+
+  // FULL TEXTURE
   fullDecal: mediumtext("full_decal"),
   isFullTexture: boolean("is_full_texture").default(false),
-  textData: mediumtext("text_data"),
+
+  textData: mediumtext("text_data"), // Legacy field, keep for backwards compatibility
   logoData: mediumtext("logo_data"),
   thumbnail: mediumtext("thumbnail"),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// Update orders to include text data
+export const orders = mysqlTable("orders", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id").notNull(),
+  designId: int("design_id").notNull(),
+  size: varchar("size", { length: 10 }).notNull().default("M"),
+  status: mysqlEnum("status", [
+    "pending",
+    "processing",
+    "shipped",
+    "delivered",
+  ]).default("pending"),
+  customerName: varchar("customer_name", { length: 100 }).notNull(),
+  customerSurname: varchar("customer_surname", { length: 100 }).notNull(),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  shippingAddress: text("shipping_address").notNull(),
+  orderDate: timestamp("order_date").defaultNow().notNull(),
+  shippedDate: timestamp("shipped_date"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+
+  // 🆕 TEXT FIELDS (optional - for faster queries without JOIN)
+  frontTextDecal: mediumtext("front_text_decal"),
+  backTextDecal: mediumtext("back_text_decal"),
+  frontTextData: mediumtext("front_text_data"),
+  backTextData: mediumtext("back_text_data"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const colors = mysqlTable("colors", {
@@ -152,25 +194,4 @@ export const cartItems = mysqlTable("cart_items", {
     .references(() => designs.id, { onDelete: "cascade" }),
   quantity: int("quantity").notNull().default(1),
   addedAt: timestamp("added_at").defaultNow(),
-});
-
-export const orders = mysqlTable("orders", {
-  id: int("id").primaryKey().autoincrement(),
-  userId: int("user_id").notNull(),
-  designId: int("design_id").notNull(),
-  size: varchar("size", { length: 10 }).notNull().default("M"),
-  status: mysqlEnum("status", [
-    "pending",
-    "processing",
-    "shipped",
-    "delivered",
-  ]).default("pending"),
-  customerName: varchar("customer_name", { length: 100 }).notNull(),
-  customerSurname: varchar("customer_surname", { length: 100 }).notNull(),
-  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
-  shippingAddress: text("shipping_address").notNull(),
-  orderDate: timestamp("order_date").defaultNow().notNull(),
-  shippedDate: timestamp("shipped_date"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
