@@ -1,43 +1,31 @@
 {
   "name": "tshirt",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "server": "node index.js",
+    "dev": "node index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
-    "@react-three/drei": "^9.112.0",
-    "@react-three/fiber": "^8.17.6",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
+    "canvas": "^3.2.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
-    "framer-motion": "^10.16.0",
-    "maath": "^0.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.16.0",
     "nodemailer": "^7.0.11",
-    "prop-types": "^15.8.1",
-    "react": "^18.2.0",
-    "react-color": "^2.19.3",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^7.9.5",
-    "three": "^0.155.0",
+    "sharp": "^0.34.5",
     "use-debounce": "^10.0.6",
-    "valtio": "^1.11.2",
-    "zod": "^4.1.12"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.15",
-    "@types/react-dom": "^18.2.7",
-    "@vitejs/plugin-react": "^4.0.3",
-    "autoprefixer": "^10.4.15",
-    "eslint": "^8.45.0",
-    "eslint-plugin-react": "^7.32.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.3",
-    "postcss": "^8.4.28",
-    "tailwindcss": "^3.3.3",
-    "vite": "^4.5.10"
+    "drizzle-kit": "^0.31.8"
   }
 }

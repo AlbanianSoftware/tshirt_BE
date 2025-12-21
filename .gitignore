@@ -92,5 +92,5 @@ build/Release
 # =========================
 # Uploads / public files
 # =========================
-server/public/uploads/
-server/public/defaults/
+public/uploads/
+public/defaults/
