@@ -1,4 +1,3 @@
-// server/routes/cart.js - UPDATED CHECKOUT with device tracking
 import express from "express";
 import { db } from "../db/index.js";
 import {
@@ -11,10 +10,12 @@ import {
   orders,
   pricing as pricingTable,
   users,
+  countries,
+  cities,
 } from "../db/schema.js";
 import { eq, and, inArray } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
-import { getDeviceInfo } from "../utils/deviceUtils.js"; // Import device utility
+import { getDeviceInfo } from "../utils/deviceUtils.js";
 
 const router = express.Router();
 
@@ -232,158 +233,272 @@ router.put("/:cartItemId", authenticateToken, async (req, res) => {
 });
 
 // CHECKOUT - UPDATED with device tracking
+// Place order from cart (UPDATED with new shipping structure)
+// Replace your checkout route in server/routes/cart.js with this:
+
+// Replace your checkout route in server/routes/cart.js with this:
+
 router.post("/checkout", authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
-    const { customerName, customerSurname, phoneNumber, shippingAddress } =
-      req.body;
+    const userId = req.user.userId || req.user.id || req.user.sub;
+    const {
+      customerName,
+      customerSurname,
+      phoneNumber,
+      countryId,
+      cityId,
+      detailedAddress,
+    } = req.body;
 
-    // Validate customer info
-    if (!customerName || !customerSurname || !phoneNumber || !shippingAddress) {
-      return res
-        .status(400)
-        .json({ error: "All customer information is required" });
+    console.log("🛒 Starting checkout for user:", userId);
+
+    // Validation
+    if (!customerName || !customerSurname || !phoneNumber) {
+      return res.status(400).json({ error: "Customer information required" });
     }
 
-    // Get device info from request
-    const deviceInfo = getDeviceInfo(req);
+    if (!countryId || !cityId || !detailedAddress) {
+      return res
+        .status(400)
+        .json({ error: "Complete shipping address required" });
+    }
 
-    console.log("📱 Device info:", deviceInfo);
-
-    // Get user's cart items
-    const userCartItems = await db
+    // Verify country and city exist
+    const [country] = await db
       .select()
+      .from(countries)
+      .where(eq(countries.id, parseInt(countryId)));
+
+    const [city] = await db
+      .select()
+      .from(cities)
+      .where(eq(cities.id, parseInt(cityId)));
+
+    if (!country || !city) {
+      return res.status(400).json({ error: "Invalid shipping location" });
+    }
+
+    console.log(`📍 Shipping to: ${city.name}, ${country.name}`);
+
+    // Get cart items with design details
+    const userCartItems = await db
+      .select({
+        cartItemId: cartItems.id,
+        designId: cartItems.designId,
+        quantity: cartItems.quantity,
+        design: designs,
+      })
       .from(cartItems)
+      .innerJoin(designs, eq(cartItems.designId, designs.id))
       .where(eq(cartItems.userId, userId));
 
     if (userCartItems.length === 0) {
       return res.status(400).json({ error: "Cart is empty" });
     }
 
-    // Get all design details
-    const designIds = userCartItems.map((item) => item.designId);
-    const designsData = await db
-      .select()
-      .from(designs)
-      .where(inArray(designs.id, designIds));
+    console.log(`📦 Cart has ${userCartItems.length} items`);
 
-    // Get pricing data
+    // Get pricing
     const pricingData = await db.select().from(pricingTable);
     const pricingMap = {};
     pricingData.forEach((item) => {
       pricingMap[item.itemType] = parseFloat(item.price);
     });
 
-    // Create orders with device tracking
+    console.log("💰 Pricing data:", pricingMap);
+
+    // Device detection
+    const userAgent = req.headers["user-agent"] || "";
+    const deviceType = /mobile/i.test(userAgent)
+      ? "mobile"
+      : /tablet/i.test(userAgent)
+      ? "tablet"
+      : "desktop";
+    const ipAddress =
+      req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+    // Get user email for notifications
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+
+    // Create orders for each cart item
     const createdOrders = [];
+    let grandTotal = 0;
 
-    for (const cartItem of userCartItems) {
-      const design = designsData.find((d) => d.id === cartItem.designId);
-      if (!design) continue;
+    for (const item of userCartItems) {
+      const design = item.design;
 
-      const unitPrice = calculateOrderPrice(design, pricingMap);
-      const totalPrice = unitPrice * cartItem.quantity;
+      // Calculate base price based on shirt type
+      const shirtTypeKey = (design.shirtType || "tshirt").toLowerCase();
+      let itemPrice = pricingMap[shirtTypeKey] || pricingMap.tshirt || 20;
 
-      // Create order WITH device info
-      const result = await db.insert(orders).values({
+      console.log(`👕 Base price for ${shirtTypeKey}: €${itemPrice}`);
+
+      // Add logo price (front)
+      if (design.isLogoTexture && design.logoDecal) {
+        const logoPrice = pricingMap.logo || 5;
+        itemPrice += logoPrice;
+        console.log(`🎨 + Front logo: €${logoPrice}`);
+      }
+
+      // Add back logo price
+      const hasDedicatedBackLogo =
+        design.backLogoDecal && design.backLogoDecal.trim() !== "";
+      const hasFrontLogoOnBack =
+        design.hasBackLogo && !hasDedicatedBackLogo && design.logoDecal;
+
+      if (hasDedicatedBackLogo || hasFrontLogoOnBack) {
+        const backLogoPrice = pricingMap.back_logo || pricingMap.logo || 5;
+        itemPrice += backLogoPrice;
+        console.log(`🎨 + Back logo: €${backLogoPrice}`);
+      }
+
+      // Add texture price
+      if (design.isFullTexture && design.fullDecal) {
+        const texturePrice = pricingMap.full_texture || 8;
+        itemPrice += texturePrice;
+        console.log(`🌈 + Full texture: €${texturePrice}`);
+      }
+
+      // Add front text price
+      if (
+        (design.frontTextDecal && design.frontTextDecal.trim() !== "") ||
+        design.hasFrontText
+      ) {
+        const frontTextPrice = pricingMap.front_text || pricingMap.text || 2;
+        itemPrice += frontTextPrice;
+        console.log(`📝 + Front text: €${frontTextPrice}`);
+      }
+
+      // Add back text price
+      if (
+        (design.backTextDecal && design.backTextDecal.trim() !== "") ||
+        design.hasBackText
+      ) {
+        const backTextPrice = pricingMap.back_text || pricingMap.text || 2;
+        itemPrice += backTextPrice;
+        console.log(`📝 + Back text: €${backTextPrice}`);
+      }
+
+      // Multiply by quantity
+      const totalPrice = itemPrice * item.quantity;
+      grandTotal += totalPrice;
+
+      console.log(
+        `✅ Item total: €${itemPrice} × ${item.quantity} = €${totalPrice}`
+      );
+
+      // Create legacy shippingAddress for backward compatibility
+      const legacyAddress = `${detailedAddress}\n${city.name}, ${country.name}`;
+
+      const [orderResult] = await db.insert(orders).values({
         userId,
         designId: design.id,
-        status: "pending",
+        size: design.size,
         customerName,
         customerSurname,
         phoneNumber,
-        shippingAddress,
+        countryId: parseInt(countryId),
+        cityId: parseInt(cityId),
+        detailedAddress,
+        shippingAddress: legacyAddress,
         price: totalPrice.toFixed(2),
-        size: design.size,
-        orderDate: new Date(),
-        // NEW: Device tracking
-        deviceType: deviceInfo.deviceType,
-        userAgent: deviceInfo.userAgent,
-        ipAddress: deviceInfo.ipAddress,
+        status: "pending",
+        deviceType,
+        userAgent,
+        ipAddress,
+        frontTextDecal: design.frontTextDecal,
+        backTextDecal: design.backTextDecal,
+        frontTextData: design.frontTextData,
+        backTextData: design.backTextData,
       });
-
-      const orderId = Array.isArray(result)
-        ? result[0]?.insertId
-        : result.insertId;
 
       createdOrders.push({
-        id: orderId,
-        designId: design.id,
+        orderId: orderResult.insertId,
+        designName: design.name,
         price: totalPrice.toFixed(2),
-        quantity: cartItem.quantity,
+        quantity: item.quantity,
       });
-
-      console.log(
-        `✅ Order ${orderId} created - €${totalPrice.toFixed(2)} from ${
-          deviceInfo.deviceType
-        }`
-      );
     }
 
-    // Clear the cart
+    console.log(`💵 Grand total: €${grandTotal.toFixed(2)}`);
+
+    // Clear cart
     await db.delete(cartItems).where(eq(cartItems.userId, userId));
 
-    // Get user's email
-    const [user] = await db
-      .select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+    // Send email notifications
+    try {
+      console.log("📧 Sending email notifications...");
 
-    // Send confirmation email (non-blocking)
-    if (user?.email) {
-      const orderDetails = {
-        items: createdOrders.map((order) => {
-          const design = designsData.find((d) => d.id === order.designId);
-          return {
-            designName: design.name,
-            shirtType: design.shirtType,
-            quantity: userCartItems.find((c) => c.designId === order.designId)
-              .quantity,
-            price: order.price,
-            isLogoTexture: design.isLogoTexture,
-            logoDecal: design.logoDecal,
-            hasBackLogo: design.hasBackLogo,
-            backLogoDecal: design.backLogoDecal,
-            isFullTexture: design.isFullTexture,
-            fullDecal: design.fullDecal,
-            hasFrontText: design.hasFrontText,
-            hasBackText: design.hasBackText,
-          };
-        }),
-        total: createdOrders
-          .reduce((sum, o) => sum + parseFloat(o.price), 0)
-          .toFixed(2),
-        orderDate: new Date(),
-        shippingAddress,
-      };
+      if (user && user.email) {
+        // Format items for email
+        const emailItems = await Promise.all(
+          createdOrders.map(async (order) => {
+            const [design] = await db
+              .select()
+              .from(designs)
+              .where(
+                eq(
+                  designs.id,
+                  userCartItems.find((i) => i.designId === order.designId)
+                    ?.designId
+                )
+              );
 
-      sendOrderConfirmation({
-        customerEmail: user.email,
-        customerName,
-        orderDetails,
-      });
+            return {
+              designName: order.designName || design?.name || "Custom Design",
+              quantity: order.quantity,
+              price: order.price,
+              shirtType: design?.shirtType || "T-Shirt",
+              isLogoTexture: design?.isLogoTexture,
+              logoDecal: design?.logoDecal,
+              hasBackLogo: design?.hasBackLogo,
+              backLogoDecal: design?.backLogoDecal,
+              isFullTexture: design?.isFullTexture,
+              fullDecal: design?.fullDecal,
+            };
+          })
+        );
 
-      sendAdminNotification({
+        await sendOrderConfirmation({
+          customerEmail: user.email,
+          customerName: `${customerName} ${customerSurname}`,
+          orderDetails: {
+            items: emailItems,
+            total: grandTotal.toFixed(2),
+            orderDate: new Date(),
+            shippingAddress: `${detailedAddress}\n${city.name}, ${country.name}`,
+          },
+        });
+        console.log("✅ Customer email sent to:", user.email);
+      }
+
+      await sendAdminNotification({
         customerName: `${customerName} ${customerSurname}`,
-        customerEmail: user.email,
+        customerEmail: user?.email || "No email provided",
         phoneNumber,
-        items: orderDetails.items,
-        total: orderDetails.total,
+        items: createdOrders,
+        total: grandTotal.toFixed(2),
       });
+      console.log("✅ Admin notification sent");
+    } catch (emailError) {
+      console.error("❌ Email error:", emailError);
+      // Don't fail the order if email fails
     }
 
+    console.log(
+      `✅ Order placed: ${userCartItems.length} items for user ${userId}`
+    );
+
     res.json({
-      message: "Orders created successfully!",
-      orders: createdOrders,
-      ordersCreated: createdOrders.length,
+      message: "Order placed successfully",
+      orderCount: createdOrders.length,
+      total: grandTotal.toFixed(2),
     });
   } catch (error) {
-    console.error("Error during checkout:", error);
-    res.status(500).json({ error: "Failed to process checkout" });
+    console.error("❌ Error placing order:", error);
+    res.status(500).json({ error: "Failed to place order" });
   }
 });
-
 // GET USER'S ORDERS
 router.get("/orders", authenticateToken, async (req, res) => {
   try {

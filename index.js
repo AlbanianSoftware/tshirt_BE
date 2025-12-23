@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser"; // 🔥 ADD THIS FOR COOKIES
+import cookieParser from "cookie-parser";
 import path from "path";
 import rateLimit from "express-rate-limit";
 import communityRoutes from "./routes/community.js";
@@ -9,6 +9,7 @@ import adminRoutes from "./routes/admin.js";
 import orderRoutes from "./routes/orders.js";
 import pricingRoutes from "./routes/pricing.js";
 import colorsRoutes from "./routes/colors.js";
+import shippingRoutes from "./routes/shipping.js"; // 🔥 ADD THIS
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,7 +29,7 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true, // 🔥 CRITICAL: Allow cookies to be sent/received
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -102,6 +103,7 @@ if (cartRoutes) {
   console.log("✅ Cart routes mounted at /api/cart");
 }
 app.use("/api/pricing", pricingRoutes);
+app.use("/api/shipping", shippingRoutes); // 🔥 FIXED: Moved before it's used
 app.use("/api/community", publishLimiter, communityRoutes);
 console.log(
   "✅ Community routes mounted at /api/community (with rate limiting)"
@@ -109,6 +111,7 @@ console.log(
 app.use("/api/admin", adminRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/colors", colorsRoutes);
+
 // 404 handler
 app.use((req, res) => {
   console.log(`❌ 404 - Route not found: ${req.method} ${req.url}`);
@@ -137,10 +140,12 @@ app.listen(PORT, () => {
   console.log("  - /api/auth");
   console.log("  - /api/designs");
   console.log("  - /api/cart");
+  console.log("  - /api/shipping 🔥 NEW");
   console.log("  - /api/community (⏱️ rate limited)");
   console.log("  - /api/admin");
   console.log("  - /api/orders");
   console.log("  - /api/pricing");
+  console.log("  - /api/colors");
   console.log("  - /uploads (📁 user uploads)");
   console.log("  - /defaults (📁 default assets)");
 });

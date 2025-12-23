@@ -1,4 +1,4 @@
-// db/schema.js - UPDATED with device tracking
+// db/schema.js - UPDATED with shipping locations
 import {
   mysqlTable,
   serial,
@@ -24,6 +24,38 @@ export const users = mysqlTable("users", {
   isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Countries table - NEW
+export const countries = mysqlTable("countries", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  code: varchar("code", { length: 2 }).notNull().unique(), // AL, XK, MK, ME
+  capitalCity: varchar("capital_city", { length: 100 }).notNull(),
+  isActive: boolean("is_active").default(true),
+  sortOrder: int("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+// Cities table - NEW
+export const cities = mysqlTable(
+  "cities",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    countryId: int("country_id")
+      .notNull()
+      .references(() => countries.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).notNull(),
+    isCapital: boolean("is_capital").default(false),
+    isActive: boolean("is_active").default(true),
+    sortOrder: int("sort_order").default(0),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    countryIdIdx: index("country_id_idx").on(table.countryId),
+  })
+);
 
 // Designs table
 export const designs = mysqlTable("designs", {
@@ -68,39 +100,60 @@ export const designs = mysqlTable("designs", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
-// Orders table - UPDATED with device tracking
-export const orders = mysqlTable("orders", {
-  id: int("id").primaryKey().autoincrement(),
-  userId: int("user_id").notNull(),
-  designId: int("design_id").notNull(),
-  size: varchar("size", { length: 10 }).notNull().default("M"),
-  status: mysqlEnum("status", [
-    "pending",
-    "processing",
-    "shipped",
-    "delivered",
-  ]).default("pending"),
-  customerName: varchar("customer_name", { length: 100 }).notNull(),
-  customerSurname: varchar("customer_surname", { length: 100 }).notNull(),
-  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
-  shippingAddress: text("shipping_address").notNull(),
-  orderDate: timestamp("order_date").defaultNow().notNull(),
-  shippedDate: timestamp("shipped_date"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+// Orders table - UPDATED with structured shipping
+export const orders = mysqlTable(
+  "orders",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    userId: int("user_id").notNull(),
+    designId: int("design_id").notNull(),
+    size: varchar("size", { length: 10 }).notNull().default("M"),
+    status: mysqlEnum("status", [
+      "pending",
+      "processing",
+      "shipped",
+      "delivered",
+    ]).default("pending"),
 
-  // NEW: Device tracking fields
-  deviceType: varchar("device_type", { length: 20 }).default("desktop"),
-  userAgent: text("user_agent"),
-  ipAddress: varchar("ip_address", { length: 45 }),
+    // Customer info
+    customerName: varchar("customer_name", { length: 100 }).notNull(),
+    customerSurname: varchar("customer_surname", { length: 100 }).notNull(),
+    phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
 
-  // TEXT FIELDS
-  frontTextDecal: mediumtext("front_text_decal"),
-  backTextDecal: mediumtext("back_text_decal"),
-  frontTextData: mediumtext("front_text_data"),
-  backTextData: mediumtext("back_text_data"),
+    // NEW: Structured shipping
+    countryId: int("country_id")
+      .notNull()
+      .references(() => countries.id),
+    cityId: int("city_id")
+      .notNull()
+      .references(() => cities.id),
+    detailedAddress: text("detailed_address").notNull(),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+    // DEPRECATED: Keep for migration compatibility
+    shippingAddress: text("shipping_address"),
+
+    orderDate: timestamp("order_date").defaultNow().notNull(),
+    shippedDate: timestamp("shipped_date"),
+    price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+
+    // Device tracking
+    deviceType: varchar("device_type", { length: 20 }).default("desktop"),
+    userAgent: text("user_agent"),
+    ipAddress: varchar("ip_address", { length: 45 }),
+
+    // TEXT FIELDS
+    frontTextDecal: mediumtext("front_text_decal"),
+    backTextDecal: mediumtext("back_text_decal"),
+    frontTextData: mediumtext("front_text_data"),
+    backTextData: mediumtext("back_text_data"),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    countryIdIdx: index("country_id_idx").on(table.countryId),
+    cityIdIdx: index("city_id_idx").on(table.cityId),
+  })
+);
 
 export const colors = mysqlTable("colors", {
   id: int("id").primaryKey().autoincrement(),

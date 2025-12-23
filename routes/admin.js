@@ -1,7 +1,15 @@
-// server/routes/admin.js - UPDATED with back logo and colors support
+// server/routes/admin.js - UPDATED GET /orders route with shipping data
 import express from "express";
 import { db } from "../db/index.js";
-import { users, designs, orders, pricing, colors } from "../db/schema.js";
+import {
+  users,
+  designs,
+  orders,
+  pricing,
+  colors,
+  countries,
+  cities,
+} from "../db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth.js";
 
@@ -11,7 +19,6 @@ const router = express.Router();
 // HELPERS
 // ============================================================================
 
-// Convert paths to full URLs
 const toFullUrl = (path, req) => {
   if (!path) return null;
   if (path.startsWith("http")) return path;
@@ -24,42 +31,30 @@ const toFullUrl = (path, req) => {
   return path;
 };
 
-// Validate hex code format
 const isValidHex = (hex) => /^#[0-9A-Fa-f]{6}$/.test(hex);
 
 // ============================================================================
 // MIDDLEWARE
 // ============================================================================
 
-// Check if user is admin
 const isAdmin = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id || req.user.sub;
 
-    console.log("🔍 Full req.user object:", req.user);
-    console.log("🔍 Extracted userId:", userId);
-
     if (!userId) {
-      console.log("❌ No userId found in token");
       return res.status(403).json({ message: "Invalid token structure" });
     }
 
     const [user] = await db.select().from(users).where(eq(users.id, userId));
 
-    console.log("👤 User found:", user);
-    console.log("🔐 isAdmin status:", user?.isAdmin);
-
     if (!user) {
-      console.log("❌ User not found in database");
       return res.status(403).json({ message: "User not found" });
     }
 
     if (!user.isAdmin) {
-      console.log("❌ User is not an admin");
       return res.status(403).json({ message: "Access denied. Admin only." });
     }
 
-    console.log("✅ Admin access granted");
     next();
   } catch (error) {
     console.error("Admin check error:", error);
@@ -67,16 +62,12 @@ const isAdmin = async (req, res, next) => {
   }
 };
 
-// Apply auth middleware to all admin routes
 router.use(authenticateToken);
 router.use(isAdmin);
 
 // ============================================================================
-// ORDER ROUTES
+// ORDER ROUTES - UPDATED WITH SHIPPING DATA
 // ============================================================================
-
-// Get all orders with back logo support
-// server/routes/admin.js - GET /orders route - FIXED WITH TEXT SUPPORT
 
 router.get("/orders", async (req, res) => {
   try {
@@ -90,17 +81,23 @@ router.get("/orders", async (req, res) => {
         customerName: orders.customerName,
         customerSurname: orders.customerSurname,
         phoneNumber: orders.phoneNumber,
+        // NEW: Structured shipping fields
+        countryId: orders.countryId,
+        cityId: orders.cityId,
+        detailedAddress: orders.detailedAddress,
+        // Legacy field for backward compatibility
         shippingAddress: orders.shippingAddress,
         orderDate: orders.orderDate,
         shippedDate: orders.shippedDate,
         price: orders.price,
-        // NEW: Device tracking fields
         deviceType: orders.deviceType,
         userAgent: orders.userAgent,
         ipAddress: orders.ipAddress,
         createdAt: orders.createdAt,
+        // User data
         username: users.username,
         userEmail: users.email,
+        // Design data
         designName: designs.name,
         designThumbnail: designs.thumbnail,
         designColor: designs.color,
@@ -118,10 +115,16 @@ router.get("/orders", async (req, res) => {
         backTextData: designs.backTextData,
         hasFrontText: designs.hasFrontText,
         hasBackText: designs.hasBackText,
+        // NEW: Shipping location data
+        countryName: countries.name,
+        countryCode: countries.code,
+        cityName: cities.name,
       })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
       .leftJoin(designs, eq(orders.designId, designs.id))
+      .leftJoin(countries, eq(orders.countryId, countries.id))
+      .leftJoin(cities, eq(orders.cityId, cities.id))
       .orderBy(sql`${orders.orderDate} DESC`);
 
     const ordersWithUrls = allOrders.map((order) => {
@@ -146,8 +149,9 @@ router.get("/orders", async (req, res) => {
       };
     });
 
-    console.log(`✅ Fetched ${ordersWithUrls.length} orders for admin`);
-
+    console.log(
+      `✅ Fetched ${ordersWithUrls.length} orders for admin with shipping data`
+    );
     res.json(ordersWithUrls);
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -155,7 +159,7 @@ router.get("/orders", async (req, res) => {
   }
 });
 
-// Get single order with back logo support
+// Get single order
 router.get("/orders/:id", async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
@@ -166,13 +170,18 @@ router.get("/orders/:id", async (req, res) => {
         userId: orders.userId,
         designId: orders.designId,
         status: orders.status,
+        size: orders.size,
         customerName: orders.customerName,
         customerSurname: orders.customerSurname,
         phoneNumber: orders.phoneNumber,
+        countryId: orders.countryId,
+        cityId: orders.cityId,
+        detailedAddress: orders.detailedAddress,
         shippingAddress: orders.shippingAddress,
         orderDate: orders.orderDate,
         shippedDate: orders.shippedDate,
         price: orders.price,
+        deviceType: orders.deviceType,
         createdAt: orders.createdAt,
         username: users.username,
         userEmail: users.email,
@@ -186,10 +195,15 @@ router.get("/orders/:id", async (req, res) => {
         fullDecal: designs.fullDecal,
         isLogoTexture: designs.isLogoTexture,
         isFullTexture: designs.isFullTexture,
+        countryName: countries.name,
+        countryCode: countries.code,
+        cityName: cities.name,
       })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
       .leftJoin(designs, eq(orders.designId, designs.id))
+      .leftJoin(countries, eq(orders.countryId, countries.id))
+      .leftJoin(cities, eq(orders.cityId, cities.id))
       .where(eq(orders.id, orderId));
 
     if (!order) {
@@ -237,10 +251,9 @@ router.patch("/orders/:id/status", async (req, res) => {
 });
 
 // ============================================================================
-// PRICING ROUTES
+// PRICING ROUTES (unchanged)
 // ============================================================================
 
-// Get all pricing items
 router.get("/pricing", async (req, res) => {
   try {
     const allPricing = await db
@@ -254,7 +267,6 @@ router.get("/pricing", async (req, res) => {
   }
 });
 
-// Update pricing for a specific item
 router.patch("/pricing/:id", async (req, res) => {
   try {
     const pricingId = parseInt(req.params.id);
@@ -265,13 +277,11 @@ router.patch("/pricing/:id", async (req, res) => {
     }
 
     const updateData = { updatedAt: new Date() };
-
     if (price !== undefined) updateData.price = price.toString();
     if (description !== undefined) updateData.description = description;
     if (isActive !== undefined) updateData.isActive = isActive;
 
     await db.update(pricing).set(updateData).where(eq(pricing.id, pricingId));
-
     res.json({ message: "Pricing updated successfully" });
   } catch (error) {
     console.error("Error updating pricing:", error);
@@ -279,7 +289,6 @@ router.patch("/pricing/:id", async (req, res) => {
   }
 });
 
-// Add new pricing item
 router.post("/pricing", async (req, res) => {
   try {
     const { itemType, price, description } = req.body;
@@ -302,7 +311,6 @@ router.post("/pricing", async (req, res) => {
   }
 });
 
-// Delete pricing item
 router.delete("/pricing/:id", async (req, res) => {
   try {
     const pricingId = parseInt(req.params.id);
@@ -315,15 +323,12 @@ router.delete("/pricing/:id", async (req, res) => {
 });
 
 // ============================================================================
-// COLORS ROUTES
+// COLORS ROUTES (unchanged)
 // ============================================================================
 
-// Get all colors (includes inactive)
 router.get("/colors", async (req, res) => {
   try {
     const allColors = await db.select().from(colors).orderBy(colors.sortOrder);
-
-    console.log(`✅ Fetched ${allColors.length} colors for admin`);
     res.json(allColors);
   } catch (error) {
     console.error("Error fetching colors:", error);
@@ -331,7 +336,6 @@ router.get("/colors", async (req, res) => {
   }
 });
 
-// Add new color
 router.post("/colors", async (req, res) => {
   try {
     const { name, hexCode, isActive = true, sortOrder = 0 } = req.body;
@@ -358,8 +362,6 @@ router.post("/colors", async (req, res) => {
       .select()
       .from(colors)
       .where(eq(colors.id, newColor.id));
-
-    console.log(`✅ Color "${name}" added successfully`);
     res.status(201).json(insertedColor);
   } catch (error) {
     console.error("Error adding color:", error);
@@ -367,7 +369,6 @@ router.post("/colors", async (req, res) => {
   }
 });
 
-// Update color
 router.patch("/colors/:id", async (req, res) => {
   try {
     const colorId = parseInt(req.params.id);
@@ -381,13 +382,10 @@ router.patch("/colors/:id", async (req, res) => {
     }
 
     await db.update(colors).set(updates).where(eq(colors.id, colorId));
-
     const [updatedColor] = await db
       .select()
       .from(colors)
       .where(eq(colors.id, colorId));
-
-    console.log(`✅ Color ID ${colorId} updated successfully`);
     res.json(updatedColor);
   } catch (error) {
     console.error("Error updating color:", error);
@@ -395,13 +393,10 @@ router.patch("/colors/:id", async (req, res) => {
   }
 });
 
-// Delete color
 router.delete("/colors/:id", async (req, res) => {
   try {
     const colorId = parseInt(req.params.id);
     await db.delete(colors).where(eq(colors.id, colorId));
-
-    console.log(`✅ Color ID ${colorId} deleted successfully`);
     res.json({ message: "Color deleted successfully" });
   } catch (error) {
     console.error("Error deleting color:", error);
