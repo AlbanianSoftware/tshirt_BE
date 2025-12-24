@@ -1,8 +1,8 @@
 // server/routes/shipping.js - NEW
 import express from "express";
 import { db } from "../db/index.js";
-import { countries, cities } from "../db/schema.js";
-import { eq, and } from "drizzle-orm";
+import { countries, cities, shippingPrices } from "../db/schema.js"; // 🔥 ADD shippingPrices here
+import { eq, and, isNull } from "drizzle-orm"; // 🔥 Also add isNull
 
 const router = express.Router();
 
@@ -87,6 +87,59 @@ router.get("/countries/:id", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching country:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+// Calculate shipping price
+router.post("/calculate", async (req, res) => {
+  try {
+    const { countryId, cityId } = req.body;
+
+    if (!countryId) {
+      return res.status(400).json({ message: "Country ID required" });
+    }
+
+    // First, try to find city-specific price
+    if (cityId) {
+      const [cityPrice] = await db
+        .select()
+        .from(shippingPrices)
+        .where(
+          and(
+            eq(shippingPrices.countryId, parseInt(countryId)),
+            eq(shippingPrices.cityId, parseInt(cityId)),
+            eq(shippingPrices.isActive, true)
+          )
+        );
+
+      if (cityPrice) {
+        return res.json({ price: parseFloat(cityPrice.price), type: "city" });
+      }
+    }
+
+    // Fallback to country-wide price
+    const [countryPrice] = await db
+      .select()
+      .from(shippingPrices)
+      .where(
+        and(
+          eq(shippingPrices.countryId, parseInt(countryId)),
+          isNull(shippingPrices.cityId),
+          eq(shippingPrices.isActive, true)
+        )
+      );
+
+    if (countryPrice) {
+      return res.json({
+        price: parseFloat(countryPrice.price),
+        type: "country",
+      });
+    }
+
+    // No shipping price found - default to free
+    res.json({ price: 0, type: "default" });
+  } catch (error) {
+    console.error("Error calculating shipping:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

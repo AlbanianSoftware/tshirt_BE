@@ -134,6 +134,13 @@
       "when": 1766521375655,
       "tag": "0018_vengeful_whiplash",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1766590389399,
+      "tag": "0019_regular_punisher",
+      "breakpoints": true
     }
   ]
 }

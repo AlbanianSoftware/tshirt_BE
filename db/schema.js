@@ -191,6 +191,26 @@ export const communityPosts = mysqlTable(
   })
 );
 
+export const shippingPrices = mysqlTable(
+  "shipping_prices",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    countryId: int("country_id")
+      .notNull()
+      .references(() => countries.id, { onDelete: "cascade" }),
+    cityId: int("city_id").references(() => cities.id, { onDelete: "cascade" }), // NULL = applies to whole country
+    price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+    description: text("description"),
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+  },
+  (table) => ({
+    countryIdIdx: index("country_id_idx").on(table.countryId),
+    cityIdIdx: index("city_id_idx").on(table.cityId),
+  })
+);
+
 export const postLikes = mysqlTable(
   "post_likes",
   {
