@@ -1,0 +1,1 @@
+ALTER TABLE `designs` ADD `logo_position` mediumtext;
