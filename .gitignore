@@ -92,5 +92,10 @@ build/Release
 # =========================
 # Uploads / public files
 # =========================
-public/uploads/
-public/defaults/
+# Ignore all files in uploads (user-generated content)
+public/uploads/*
+# But keep the folder structure
+!public/uploads/.gitkeep
+
+# Keep defaults folder and its contents (tracked in git)
+# public/defaults/ is NOT ignored - it will be committed
